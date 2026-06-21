@@ -31,4 +31,14 @@ public class MarketState
     
     // Resolution
     [Id(16)] public Outcome? WinningOutcome { get; set; }
+
+    // Enable / disable controls
+    /// <summary>When false, market is hidden from public listings (Draft can stay false).</summary>
+    [Id(17)] public bool IsVisible { get; set; }
+
+    /// <summary>When false, users cannot bet on Yes for this market.</summary>
+    [Id(18)] public bool YesBettingEnabled { get; set; } = true;
+
+    /// <summary>When false, users cannot bet on No for this market.</summary>
+    [Id(19)] public bool NoBettingEnabled { get; set; } = true;
 }
