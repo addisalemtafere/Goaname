@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Orleans.Server" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Goaname.Application\Goaname.Application.csproj" />
+    <ProjectReference Include="..\Goaname.Infrastructure\Goaname.Infrastructure.csproj" />
+    <ProjectReference Include="..\Goaname.Contracts\Goaname.Contracts.csproj" />
+    <ProjectReference Include="..\Goaname.Grains\Goaname.Grains.csproj" />
+    <ProjectReference Include="..\Goaname.Grains.Interfaces\Goaname.Grains.Interfaces.csproj" />
+  </ItemGroup>
+
+</Project>

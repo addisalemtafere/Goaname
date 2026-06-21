@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Goaname.Application/Goaname.Application.csproj" />
+    <Project Path="src/Goaname.Contracts/Goaname.Contracts.csproj" />
+    <Project Path="src/Goaname.Domain/Goaname.Domain.csproj" />
+    <Project Path="src/Goaname.Grains.Interfaces/Goaname.Grains.Interfaces.csproj" />
+    <Project Path="src/Goaname.Grains/Goaname.Grains.csproj" />
+    <Project Path="src/Goaname.Infrastructure/Goaname.Infrastructure.csproj" />
+    <Project Path="src/Goaname.Presentation/Goaname.Presentation.csproj" />
+  </Folder>
+</Solution>
