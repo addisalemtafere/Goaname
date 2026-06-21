@@ -100,6 +100,56 @@ The odds are calculated automatically using the Logarithmic Market Scoring Rule 
 
 ---
 
+## 📖 Detailed Use Cases
+
+### Use Case 1: Tenant Admin Customizing the Platform
+**Actor:** Tenant Administrator (e.g., a sports betting brand)
+**Goal:** Launch a branded prediction market without code changes.
+**Flow:**
+1. Admin logs into the Tenant Dashboard.
+2. Navigates to the "Theme Editor" and updates primary colors, fonts, and logo.
+3. The system updates the `TenantGrain` state.
+4. The frontend dynamically fetches the new CSS variables (`--gn-color-primary`, etc.) and applies them instantly without a page reload.
+5. Admin configures the platform fee (e.g., 2.5%) which is immediately applied to all new bets via the AMM.
+
+### Use Case 2: User Placing a Bet (High Concurrency)
+**Actor:** End User (Bettor)
+**Goal:** Place a $50 bet on "Yes" for an active market.
+**Flow:**
+1. User views the market; real-time odds are streamed via SignalR.
+2. User enters $50 on "Yes" and clicks "Place Bet".
+3. The API routes the request to the Orleans `MarketGrain`.
+4. An Orleans **ACID Transaction** begins:
+   - `UserGrain` verifies the $50 balance and debits it.
+   - `MarketGrain` applies the LMSR formula to calculate the exact shares received and updates the new odds.
+   - `BetSlipGrain` is created immutably.
+5. Transaction commits. If the user had insufficient funds, the entire operation rolls back safely.
+6. `MarketGrain` publishes an event; all connected clients see the odds shift instantly.
+
+### Use Case 3: Market Resolution & Automated Settlement
+**Actor:** System Admin or Automated Oracle
+**Goal:** Resolve a finished market and distribute payouts.
+**Flow:**
+1. Oracle determines "Yes" is the winning outcome and calls the API.
+2. `MarketGrain` state transitions to `Resolved`. Betting is locked.
+3. `MarketGrain` delegates to `SettlementGrain` to process payouts.
+4. `SettlementGrain` fetches all bet slips and processes them in batches to prevent timeouts.
+5. Winning `UserGrains` are credited via transactional operations.
+6. `MarketGrain` transitions to `Settled`.
+7. Users receive real-time push notifications of their winnings via SignalR.
+
+### Use Case 4: Fraud Detection & Risk Mitigation
+**Actor:** System (Background Process)
+**Goal:** Prevent malicious actors from manipulating the AMM or exploiting the platform.
+**Flow:**
+1. A user attempts to place 50 bets in 10 seconds to manipulate the LMSR curve.
+2. The `FraudDetectionGrain` (listening to the bet stream) detects the velocity anomaly.
+3. It immediately calls `UserGrain.FreezeAccountAsync()`.
+4. The user's subsequent bets are rejected automatically.
+5. An alert is flagged in the Admin Dashboard for manual review.
+
+---
+
 ## 🏢 Orleans Multi-Tenant Architecture
 
 ### Tenant Isolation Strategy
