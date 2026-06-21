@@ -1,0 +1,145 @@
+/* 
+  Goaname White-Label CSS Variable System
+  This file contains the foundational design tokens.
+  Tenants can override these variables dynamically.
+*/
+
+:root {
+  /* =========================================
+     1. COLOR SYSTEM
+     ========================================= */
+  
+  /* Brand Colors */
+  --gn-color-primary: #3b82f6;
+  --gn-color-primary-hover: #2563eb;
+  --gn-color-primary-active: #1d4ed8;
+  --gn-color-primary-disabled: #93c5fd;
+  
+  --gn-color-secondary: #64748b;
+  --gn-color-accent: #f59e0b;
+
+  /* Background Colors */
+  --gn-color-bg-base: #0f172a;       /* Main page background (Dark mode default) */
+  --gn-color-bg-surface: #1e293b;    /* Cards, Modals, Dropdowns */
+  --gn-color-bg-surface-hover: #334155;
+  
+  /* Text Colors */
+  --gn-color-text-primary: #f8fafc;
+  --gn-color-text-secondary: #cbd5e1;
+  --gn-color-text-muted: #64748b;
+  --gn-color-text-inverse: #0f172a;
+
+  /* Semantic Colors */
+  --gn-color-success: #10b981;
+  --gn-color-danger: #ef4444;
+  --gn-color-warning: #f59e0b;
+  --gn-color-info: #3b82f6;
+
+  /* Odds Specific Colors */
+  --gn-color-odds-yes: #10b981;
+  --gn-color-odds-yes-bg: rgba(16, 185, 129, 0.1);
+  --gn-color-odds-no: #ef4444;
+  --gn-color-odds-no-bg: rgba(239, 68, 68, 0.1);
+
+  /* =========================================
+     2. TYPOGRAPHY SYSTEM
+     ========================================= */
+  
+  --gn-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --gn-font-family-heading: 'Inter', system-ui, -apple-system, sans-serif;
+  --gn-font-family-mono: 'JetBrains Mono', monospace;
+
+  /* Font Sizes */
+  --gn-font-size-xs: 0.75rem;   /* 12px */
+  --gn-font-size-sm: 0.875rem;  /* 14px */
+  --gn-font-size-base: 1rem;    /* 16px */
+  --gn-font-size-lg: 1.125rem;  /* 18px */
+  --gn-font-size-xl: 1.25rem;   /* 20px */
+  --gn-font-size-2xl: 1.5rem;   /* 24px */
+  --gn-font-size-3xl: 1.875rem; /* 30px */
+
+  /* Font Weights */
+  --gn-font-weight-normal: 400;
+  --gn-font-weight-medium: 500;
+  --gn-font-weight-semibold: 600;
+  --gn-font-weight-bold: 700;
+
+  /* =========================================
+     3. SPACING SYSTEM (4px Grid)
+     ========================================= */
+  
+  --gn-space-1: 0.25rem;  /* 4px */
+  --gn-space-2: 0.5rem;   /* 8px */
+  --gn-space-3: 0.75rem;  /* 12px */
+  --gn-space-4: 1rem;     /* 16px */
+  --gn-space-5: 1.25rem;  /* 20px */
+  --gn-space-6: 1.5rem;   /* 24px */
+  --gn-space-8: 2rem;     /* 32px */
+  --gn-space-10: 2.5rem;  /* 40px */
+  --gn-space-12: 3rem;    /* 48px */
+
+  /* =========================================
+     4. BORDERS & SHADOWS
+     ========================================= */
+  
+  /* Border Radius */
+  --gn-radius-sm: 4px;
+  --gn-radius-md: 8px;
+  --gn-radius-lg: 12px;
+  --gn-radius-xl: 16px;
+  --gn-radius-pill: 9999px;
+  --gn-radius-circle: 50%;
+
+  /* Box Shadows */
+  --gn-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --gn-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --gn-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  
+  /* Borders */
+  --gn-border-width: 1px;
+  --gn-border-color: #334155;
+
+  /* =========================================
+     5. COMPONENT SPECIFIC HOOKS
+     ========================================= */
+  
+  /* Market Card */
+  --gn-card-bg: var(--gn-color-bg-surface);
+  --gn-card-border: var(--gn-border-width) solid var(--gn-border-color);
+  --gn-card-radius: var(--gn-radius-lg);
+  --gn-card-shadow: var(--gn-shadow-md);
+  
+  /* Buttons */
+  --gn-button-radius: var(--gn-radius-md);
+  --gn-button-padding-x: var(--gn-space-4);
+  --gn-button-padding-y: var(--gn-space-2);
+}
+
+/* Light Mode Overrides */
+[data-theme='light'] {
+  --gn-color-bg-base: #f8fafc;
+  --gn-color-bg-surface: #ffffff;
+  --gn-color-bg-surface-hover: #f1f5f9;
+  
+  --gn-color-text-primary: #0f172a;
+  --gn-color-text-secondary: #475569;
+  --gn-color-text-muted: #94a3b8;
+  --gn-color-text-inverse: #ffffff;
+  
+  --gn-border-color: #e2e8f0;
+}
+
+/* Global Reset & Base Styles */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--gn-color-bg-base);
+  color: var(--gn-color-text-primary);
+  font-family: var(--gn-font-family-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
