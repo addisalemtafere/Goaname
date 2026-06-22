@@ -11,6 +11,7 @@ internal static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        builder.AddGoanameConfiguration();
         builder.Services.AddApplicationServices();
         builder.Services.AddGoanameAuthentication(builder.Configuration, builder.Environment);
         builder.AddGoanameOrleans();
