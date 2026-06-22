@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: goaname-postgres
+    environment:
+      POSTGRES_USER: goaname
+      POSTGRES_PASSWORD: goaname
+      POSTGRES_DB: goaname
+    ports:
+      - "5432:5432"
+    volumes:
+      - goaname_pgdata:/var/lib/postgresql/data
+      - ./orleans/sql/01-PostgreSQL-Main.sql:/docker-entrypoint-initdb.d/01-main.sql:ro
+      - ./orleans/sql/02-PostgreSQL-Clustering.sql:/docker-entrypoint-initdb.d/02-clustering.sql:ro
+      - ./orleans/sql/03-PostgreSQL-Persistence.sql:/docker-entrypoint-initdb.d/03-persistence.sql:ro
+      - ./orleans/sql/04-PostgreSQL-Reminders.sql:/docker-entrypoint-initdb.d/04-reminders.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goaname -d goaname"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: goaname-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - goaname_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  goaname_pgdata:
+  goaname_redisdata:

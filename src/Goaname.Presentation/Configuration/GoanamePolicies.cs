@@ -1,0 +1,6 @@
+namespace Goaname.Presentation.Configuration;
+
+internal static class GoanamePolicies
+{
+    public const string OrleansDashboard = "OrleansDashboard";
+}

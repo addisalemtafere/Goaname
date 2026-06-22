@@ -6,6 +6,15 @@
   <ItemGroup>
     <ProjectReference Include="..\Goaname.Domain\Goaname.Domain.csproj" />
     <ProjectReference Include="..\Goaname.Contracts\Goaname.Contracts.csproj" />
+    <ProjectReference Include="..\Goaname.Grains.Interfaces\Goaname.Grains.Interfaces.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Orleans.Sdk" />
+    <PackageReference Include="Microsoft.Orleans.Transactions" />
   </ItemGroup>
 
 </Project>
