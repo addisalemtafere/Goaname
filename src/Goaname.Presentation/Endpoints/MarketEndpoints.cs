@@ -1,9 +1,13 @@
+using Goaname.Application.Features.Markets.CloseMarket;
 using Goaname.Application.Features.Markets.CreateMarket;
 using Goaname.Application.Features.Markets.GetMarket;
+using Goaname.Application.Features.Markets.GetMarketBets;
 using Goaname.Application.Features.Markets.GetMarketOdds;
 using Goaname.Application.Features.Markets.ListAdminMarkets;
 using Goaname.Application.Features.Markets.ListMarkets;
 using Goaname.Application.Features.Markets.PublishMarket;
+using Goaname.Application.Features.Markets.ResolveMarket;
+using Goaname.Application.Features.Markets.SettleMarket;
 using Goaname.Contracts.Markets;
 using MediatR;
 
@@ -21,8 +25,12 @@ internal static class MarketEndpoints
         group.MapGet("/markets/{marketId:guid}", GetMarketAsync);
         group.MapGet("/markets/{marketId:guid}/odds", GetMarketOddsAsync);
         group.MapGet("/admin/markets", ListAdminMarketsAsync);
+        group.MapGet("/admin/markets/{marketId:guid}/bets", GetMarketBetsAsync);
         group.MapPost("/admin/markets", CreateMarketAsync);
         group.MapPost("/admin/markets/{marketId:guid}/publish", PublishMarketAsync);
+        group.MapPost("/admin/markets/{marketId:guid}/close", CloseMarketAsync);
+        group.MapPost("/admin/markets/{marketId:guid}/resolve", ResolveMarketAsync);
+        group.MapPost("/admin/markets/{marketId:guid}/settle", SettleMarketAsync);
 
         return app;
     }
@@ -38,6 +46,9 @@ internal static class MarketEndpoints
 
     private static Task<IResult> ListAdminMarketsAsync(ISender sender, string tenantId) =>
         SendOkAsync(sender, new ListAdminMarketsQuery(NormalizeTenantId(tenantId)), Results.Ok);
+
+    private static Task<IResult> GetMarketBetsAsync(ISender sender, string tenantId, Guid marketId) =>
+        SendOkAsync(sender, new GetMarketBetsQuery(NormalizeTenantId(tenantId), marketId), Results.Ok);
 
     private static async Task<IResult> CreateMarketAsync(
         ISender sender,
@@ -56,6 +67,26 @@ internal static class MarketEndpoints
 
     private static Task<IResult> PublishMarketAsync(ISender sender, string tenantId, Guid marketId) =>
         SendOkAsync(sender, new PublishMarketCommand(NormalizeTenantId(tenantId), marketId), Results.Ok);
+
+    private static Task<IResult> CloseMarketAsync(ISender sender, string tenantId, Guid marketId) =>
+        SendOkAsync(sender, new CloseMarketCommand(NormalizeTenantId(tenantId), marketId), Results.Ok);
+
+    private static async Task<IResult> ResolveMarketAsync(
+        ISender sender,
+        string tenantId,
+        Guid marketId,
+        ResolveMarketRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return await SendOkAsync(
+            sender,
+            ResolveMarketCommand.FromRequest(NormalizeTenantId(tenantId), marketId, request),
+            Results.Ok).ConfigureAwait(false);
+    }
+
+    private static Task<IResult> SettleMarketAsync(ISender sender, string tenantId, Guid marketId) =>
+        SendOkAsync(sender, new SettleMarketCommand(NormalizeTenantId(tenantId), marketId), Results.Ok);
 
     private static async Task<IResult> SendOkAsync<TResponse>(
         ISender sender,

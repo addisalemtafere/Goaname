@@ -24,4 +24,7 @@ public class WalletState
 
     /// <summary>Tracks bet debits by slip id for idempotent wallet operations.</summary>
     [Id(11)] public Dictionary<Guid, decimal> BetDebitsBySlipId { get; } = new();
+
+    /// <summary>Tracks bet credits by slip id for idempotent settlement.</summary>
+    [Id(12)] public Dictionary<Guid, decimal> BetCreditsBySlipId { get; } = new();
 }

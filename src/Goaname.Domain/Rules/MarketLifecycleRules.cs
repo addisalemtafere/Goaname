@@ -42,4 +42,50 @@ public static class MarketLifecycleRules
 
         return null;
     }
+
+    public static string? GetCloseTradingFailureReason(MarketState market)
+    {
+        ArgumentNullException.ThrowIfNull(market);
+
+        return market.Status switch
+        {
+            MarketStatus.Open => null,
+            MarketStatus.Closing => "Market is already closed for betting.",
+            MarketStatus.Resolved => "Market is already resolved.",
+            MarketStatus.Settled => "Market is already settled.",
+            MarketStatus.Cancelled => "Market is cancelled.",
+            _ => "Only open markets can be closed for betting.",
+        };
+    }
+
+    public static string? GetResolveFailureReason(MarketState market)
+    {
+        ArgumentNullException.ThrowIfNull(market);
+
+        return market.Status switch
+        {
+            MarketStatus.Open or MarketStatus.Closing => null,
+            MarketStatus.Resolved => "Market is already resolved.",
+            MarketStatus.Settled => "Market is already settled.",
+            MarketStatus.Cancelled => "Market is cancelled.",
+            _ => "Only open or closing markets can be resolved.",
+        };
+    }
+
+    public static string? GetSettleFailureReason(MarketState market)
+    {
+        ArgumentNullException.ThrowIfNull(market);
+        return GetSettleFailureReason(market.Status, market.WinningOutcome);
+    }
+
+    public static string? GetSettleFailureReason(MarketStatus status, Outcome? winningOutcome) =>
+        status switch
+        {
+            MarketStatus.Resolved => winningOutcome.HasValue
+                ? null
+                : "Market must have a winning outcome before settlement.",
+            MarketStatus.Settled => "Market is already settled.",
+            MarketStatus.Cancelled => "Market is cancelled.",
+            _ => "Only resolved markets can be settled.",
+        };
 }

@@ -47,7 +47,9 @@ export interface BetHistoryItem {
   sharesReceived: number;
   oddsAtPlacement: number;
   status: BetStatus;
+  settlementAmount?: number | null;
   placedAt: string;
+  settledAt?: string | null;
 }
 
 export async function listMyBets(limit = 50): Promise<BetHistoryItem[]> {

@@ -6,24 +6,30 @@ import {
   removeCategory,
 } from '../../api/categories';
 import {
+  closeMarket,
   createMarket,
   defaultTradingEndsAt,
   formatMarketStatus,
-  getMarketOdds,
+  isClosingMarket,
   isDraftMarket,
+  isOpenMarket,
+  isResolvedMarket,
   listAdminMarkets,
+  normalizeMarketStatus,
   publishMarket,
-  TENANT_ID,
+  resolveMarket,
+  settleMarket,
   toCardPercent,
   type MarketDto,
-  type OddsSnapshot,
+  type Outcome,
 } from '../../api/markets';
+import { useMarketDetails } from '../../hooks/useMarketDetails';
+import { MarketDetailsPanel } from './MarketDetailsPanel';
 import {
   Alert,
   Badge,
   Button,
   Card,
-  DetailRow,
   EmptyState,
   Field,
   Input,
@@ -64,9 +70,11 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
   const [removingCategory, setRemovingCategory] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [closingId, setClosingId] = useState<string | null>(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [settlingId, setSettlingId] = useState<string | null>(null);
   const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
-  const [selectedOdds, setSelectedOdds] = useState<OddsSnapshot | null>(null);
-  const [oddsLoading, setOddsLoading] = useState(false);
+  const marketDetails = useMarketDetails(selectedMarketId);
 
   const loadCategories = useCallback(async () => {
     setCategoriesLoading(true);
@@ -108,37 +116,6 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
   useEffect(() => {
     void loadMarkets();
   }, [loadMarkets]);
-
-  useEffect(() => {
-    if (!selectedMarketId) {
-      setSelectedOdds(null);
-      return;
-    }
-
-    let cancelled = false;
-    setOddsLoading(true);
-
-    void getMarketOdds(TENANT_ID, selectedMarketId)
-      .then((odds) => {
-        if (!cancelled) {
-          setSelectedOdds(odds);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSelectedOdds(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setOddsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedMarketId]);
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -233,13 +210,60 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     }
   }
 
-  const selectedMarket = markets.find((market) => market.id === selectedMarketId) ?? null;
+  async function handleClose(marketId: string) {
+    setClosingId(marketId);
+    setError(null);
+
+    try {
+      await closeMarket(marketId);
+      await loadMarkets();
+      await marketDetails.refresh();
+      onMarketsChanged?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to close market');
+    } finally {
+      setClosingId(null);
+    }
+  }
+
+  async function handleResolve(marketId: string, winningOutcome: Outcome) {
+    setResolvingId(marketId);
+    setError(null);
+
+    try {
+      await resolveMarket(marketId, winningOutcome);
+      await loadMarkets();
+      await marketDetails.refresh();
+      onMarketsChanged?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to resolve market');
+    } finally {
+      setResolvingId(null);
+    }
+  }
+
+  async function handleSettle(marketId: string) {
+    setSettlingId(marketId);
+    setError(null);
+
+    try {
+      await settleMarket(marketId);
+      await loadMarkets();
+      await marketDetails.refresh();
+      onMarketsChanged?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to settle market');
+    } finally {
+      setSettlingId(null);
+    }
+  }
+
 
   return (
     <Card className="mb-8 grid gap-6 rounded-xl p-6 shadow-sm">
       <PageHeader
         title="Manage Markets"
-        subtitle="Create drafts, publish to the public catalog, and inspect odds."
+        subtitle="Create drafts, publish, close trading, resolve outcomes, and pay winners."
         size="compact"
         action={
           <Button variant="secondary" onClick={() => void loadMarkets()}>
@@ -374,76 +398,121 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
                 as="article"
                 variant="elevated"
                 className={cn(
-                  'flex flex-wrap items-center justify-between gap-4 rounded-lg p-4',
+                  'rounded-lg',
                   selectedMarketId === market.id && 'border-vantage-accent',
                 )}
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <strong className="text-vantage-fg">{market.title}</strong>
-                    <StatusBadge status={market.status} visible={market.isVisible} />
+                <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong className="text-vantage-fg">{market.title}</strong>
+                      <StatusBadge
+                        status={market.status}
+                        visible={market.isVisible}
+                        winningOutcome={market.winningOutcome}
+                      />
+                    </div>
+                    <p className="mt-2 break-all text-sm text-vantage-muted">
+                      {market.category} · ends {new Date(market.tradingEndsAt).toLocaleString()} · {market.id}
+                    </p>
+                    <p className="mt-2 text-sm text-vantage-muted">
+                      {toCardPercent(market.yesProbability)}% Yes · {market.yesMultiplier.toFixed(2)}x /
+                      {' '}{toCardPercent(market.noProbability)}% No · {market.noMultiplier.toFixed(2)}x
+                    </p>
                   </div>
-                  <p className="mt-2 break-all text-sm text-vantage-muted">
-                    {market.category} · ends {new Date(market.tradingEndsAt).toLocaleString()} · {market.id}
-                  </p>
-                  <p className="mt-2 text-sm text-vantage-muted">
-                    {toCardPercent(market.yesProbability)}% Yes · {market.yesMultiplier.toFixed(2)}x /
-                    {' '}{toCardPercent(market.noProbability)}% No · {market.noMultiplier.toFixed(2)}x
-                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => setSelectedMarketId(selectedMarketId === market.id ? null : market.id)}
+                    >
+                      {selectedMarketId === market.id ? 'Hide details' : 'Details'}
+                    </Button>
+                    {isDraftMarket(market) && (
+                      <Button
+                        disabled={publishingId === market.id}
+                        onClick={() => void handlePublish(market.id)}
+                      >
+                        {publishingId === market.id ? 'Publishing...' : 'Publish'}
+                      </Button>
+                    )}
+                    {isOpenMarket(market) && (
+                      <Button
+                        variant="secondary"
+                        disabled={closingId === market.id}
+                        onClick={() => void handleClose(market.id)}
+                      >
+                        {closingId === market.id ? 'Closing...' : 'Close trading'}
+                      </Button>
+                    )}
+                    {isClosingMarket(market) && (
+                      <>
+                        <Button
+                          disabled={resolvingId === market.id}
+                          onClick={() => void handleResolve(market.id, 'Yes')}
+                        >
+                          {resolvingId === market.id ? 'Resolving...' : 'Resolve Yes'}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          disabled={resolvingId === market.id}
+                          onClick={() => void handleResolve(market.id, 'No')}
+                        >
+                          Resolve No
+                        </Button>
+                      </>
+                    )}
+                    {isResolvedMarket(market) && (
+                      <Button
+                        disabled={settlingId === market.id}
+                        onClick={() => void handleSettle(market.id)}
+                      >
+                        {settlingId === market.id ? 'Settling...' : 'Settle & pay winners'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="secondary" onClick={() => setSelectedMarketId(market.id)}>
-                    Details
-                  </Button>
-                  {isDraftMarket(market) && (
-                    <Button
-                      disabled={publishingId === market.id}
-                      onClick={() => void handlePublish(market.id)}
-                    >
-                      {publishingId === market.id ? 'Publishing...' : 'Publish'}
-                    </Button>
-                  )}
-                </div>
+                {selectedMarketId === market.id && (
+                  <div className="px-4 pb-4">
+                    <MarketDetailsPanel
+                      market={market}
+                      odds={marketDetails.odds}
+                      bets={marketDetails.bets}
+                      loading={marketDetails.loading}
+                      error={marketDetails.error}
+                    />
+                  </div>
+                )}
               </Card>
             ))}
           </div>
         )}
       </div>
-
-      {selectedMarket && (
-        <PanelSection title="Market details">
-          <dl className="mb-4 grid grid-cols-[120px_1fr] gap-x-4 gap-y-2">
-            <DetailRow label="Title" value={selectedMarket.title} />
-            <DetailRow label="Status" value={formatMarketStatus(selectedMarket.status)} />
-            <DetailRow label="Visible" value={selectedMarket.isVisible ? 'Yes' : 'No'} />
-            <DetailRow label="Volume" value={`$${selectedMarket.totalVolume.toFixed(2)}`} />
-            <DetailRow label="Traders" value={String(selectedMarket.uniqueTraders)} />
-          </dl>
-
-          {oddsLoading && (
-            <p className="m-0 text-sm text-vantage-muted">Loading live odds...</p>
-          )}
-
-          {!oddsLoading && selectedOdds && (
-            <div className="grid gap-2 text-sm text-vantage-muted">
-              <p className="m-0">Yes: {toCardPercent(selectedOdds.yesProbability)}% ({selectedOdds.yesMultiplier.toFixed(2)}x)</p>
-              <p className="m-0">No: {toCardPercent(selectedOdds.noProbability)}% ({selectedOdds.noMultiplier.toFixed(2)}x)</p>
-            </div>
-          )}
-        </PanelSection>
-      )}
     </Card>
   );
 }
 
-function StatusBadge({ status, visible }: { status: MarketDto['status']; visible: boolean }) {
+function StatusBadge({
+  status,
+  visible,
+  winningOutcome,
+}: {
+  status: MarketDto['status'];
+  visible: boolean;
+  winningOutcome?: MarketDto['winningOutcome'];
+}) {
+  const statusName = normalizeMarketStatus(status);
   const label = formatMarketStatus(status);
-  const isDraft = status === 0;
+  const isDraft = statusName === 'Draft';
+  const isLive = statusName === 'Open' || statusName === 'Closing';
+  const isSettled = statusName === 'Settled' || statusName === 'Resolved';
 
   return (
-    <Badge variant={isDraft ? 'draft' : 'accent'}>
-      {label}{visible ? ' · Live' : ''}
+    <Badge variant={isDraft ? 'draft' : isSettled ? 'draft' : 'accent'}>
+      {label}
+      {visible && isLive ? ' · Live' : ''}
+      {isSettled && winningOutcome ? ` · ${winningOutcome} won` : ''}
     </Badge>
   );
 }

@@ -1,6 +1,7 @@
 using FluentValidation;
 using Goaname.Application.Common.Behaviors;
 using Goaname.Application.Features.Markets;
+using Goaname.Application.Features.Markets.Settlement;
 using Goaname.Application.Features.Tenants.InitializeTenant;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,8 @@ public static class ApplicationServiceRegistration
         });
 
         services.AddScoped<Transactions.IBetPlacementTransactionRunner, Transactions.BetPlacementTransactionRunner>();
+        services.AddScoped<Transactions.ISettlementTransactionRunner, Transactions.SettlementTransactionRunner>();
+        services.AddScoped<IMarketSettlementService, MarketSettlementService>();
         services.AddScoped<IMarketGrainAccessor, MarketGrainAccessor>();
 
         return services;

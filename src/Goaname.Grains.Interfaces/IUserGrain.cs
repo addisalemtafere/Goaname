@@ -31,4 +31,10 @@ public interface IUserGrain : IGrainWithStringKey
     /// </summary>
     [Alias("DebitForBetAsync")]
     public Task<WalletState> DebitForBetAsync(decimal amount, Guid betSlipId);
+
+    /// <summary>
+    /// Credits wallet winnings for a settled bet slip. Idempotent for the same <paramref name="betSlipId"/>.
+    /// </summary>
+    [Alias("CreditWinningsAsync")]
+    public Task<WalletState> CreditWinningsAsync(decimal amount, Guid betSlipId);
 }

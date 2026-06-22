@@ -1,5 +1,6 @@
 using Goaname.Application.Features.Markets.CreateMarket;
 using Goaname.Contracts.Markets;
+using Goaname.Domain.Enums;
 using Goaname.Domain.Exceptions;
 using Goaname.Domain.Rules;
 using Goaname.Domain.State;
@@ -61,6 +62,37 @@ public sealed class MarketGrainAccessor(IGrainFactory grainFactory) : IMarketGra
         return await ToDtoAsync(grain, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<MarketDto> CloseMarketAsync(
+        string tenantId,
+        Guid marketId,
+        CancellationToken cancellationToken = default)
+    {
+        var grain = GetMarketGrain(tenantId, marketId);
+        await grain.CloseTradingAsync().ConfigureAwait(false);
+        return await ToDtoAsync(grain, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<MarketDto> ResolveMarketAsync(
+        string tenantId,
+        Guid marketId,
+        Outcome winningOutcome,
+        CancellationToken cancellationToken = default)
+    {
+        var grain = GetMarketGrain(tenantId, marketId);
+        await grain.ResolveAsync(winningOutcome).ConfigureAwait(false);
+        return await ToDtoAsync(grain, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<MarketDto> SettleMarketAsync(
+        string tenantId,
+        Guid marketId,
+        CancellationToken cancellationToken = default)
+    {
+        var grain = GetMarketGrain(tenantId, marketId);
+        await grain.MarkSettledAsync().ConfigureAwait(false);
+        return await ToDtoAsync(grain, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<MarketDto>> ListVisibleMarketsAsync(
         string tenantId,
         CancellationToken cancellationToken = default)
@@ -73,7 +105,11 @@ public sealed class MarketGrainAccessor(IGrainFactory grainFactory) : IMarketGra
         }
 
         var results = await Task.WhenAll(
-            marketIds.Select(id => TryGetVisibleMarketAsync(tenantId, id, cancellationToken)))
+            marketIds.Select(id => TryGetMarketAsync(
+                tenantId,
+                id,
+                state => MarketAccessRules.IsVisibleOnSite(state),
+                cancellationToken)))
             .ConfigureAwait(false);
 
         return [.. results.Where(market => market is not null).Select(market => market!)];
@@ -91,7 +127,7 @@ public sealed class MarketGrainAccessor(IGrainFactory grainFactory) : IMarketGra
         }
 
         var results = await Task.WhenAll(
-            marketIds.Select(id => TryGetMarketAsync(tenantId, id, cancellationToken)))
+            marketIds.Select(id => TryGetMarketAsync(tenantId, id, include: null, cancellationToken)))
             .ConfigureAwait(false);
 
         return [.. results
@@ -103,6 +139,7 @@ public sealed class MarketGrainAccessor(IGrainFactory grainFactory) : IMarketGra
     private async Task<MarketDto?> TryGetMarketAsync(
         string tenantId,
         Guid marketId,
+        Func<MarketState, bool>? include,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -110,25 +147,7 @@ public sealed class MarketGrainAccessor(IGrainFactory grainFactory) : IMarketGra
         try
         {
             var snapshot = await GetMarketGrain(tenantId, marketId).GetSnapshotAsync().ConfigureAwait(false);
-            return MarketDtoMapper.MapToDto(snapshot);
-        }
-        catch (NotFoundException)
-        {
-            return null;
-        }
-    }
-
-    private async Task<MarketDto?> TryGetVisibleMarketAsync(
-        string tenantId,
-        Guid marketId,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        try
-        {
-            var snapshot = await GetMarketGrain(tenantId, marketId).GetSnapshotAsync().ConfigureAwait(false);
-            return MarketAccessRules.IsVisibleOnSite(snapshot.State)
+            return include is null || include(snapshot.State)
                 ? MarketDtoMapper.MapToDto(snapshot)
                 : null;
         }

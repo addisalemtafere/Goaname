@@ -173,6 +173,47 @@ public class UserGrain : Grain, IUserGrain
         return _state.State.Wallet;
     }
 
+    [Transaction(TransactionOption.CreateOrJoin)]
+    public async Task<WalletState> CreditWinningsAsync(decimal amount, Guid betSlipId)
+    {
+        if (betSlipId == Guid.Empty)
+        {
+            throw new BusinessRuleException("Bet slip id is required.");
+        }
+
+        if (amount < 0)
+        {
+            throw new BusinessRuleException("Credit amount cannot be negative.");
+        }
+
+        EnsureWalletActive();
+
+        if (amount == 0)
+        {
+            return _state.State.Wallet;
+        }
+
+        if (WalletRules.IsMatchingBetCredit(_state.State.Wallet, betSlipId, amount))
+        {
+            return _state.State.Wallet;
+        }
+
+        if (WalletRules.HasConflictingBetCredit(_state.State.Wallet, betSlipId, amount))
+        {
+            throw new BusinessRuleException("Bet slip credit already recorded with a different amount.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        _state.State.Wallet.Balance += amount;
+        _state.State.Wallet.TotalWon += amount;
+        _state.State.Wallet.BetCreditsBySlipId[betSlipId] = amount;
+        _state.State.Wallet.LastUpdated = now;
+        _state.State.LastActiveAt = now;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+        return _state.State.Wallet;
+    }
+
     private void ApplyDebit(decimal amount)
     {
         var now = DateTimeOffset.UtcNow;

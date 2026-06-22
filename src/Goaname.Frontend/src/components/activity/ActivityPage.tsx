@@ -172,6 +172,8 @@ function MyBetsPanel({
 
 function MyBetRow({ bet, currency }: { bet: BetHistoryItem; currency: 'USD' | 'ETB' }) {
   const isYes = bet.outcome === 'Yes';
+  const isWon = bet.status === 'Won';
+  const isLost = bet.status === 'Lost';
 
   return (
     <li className="px-5 py-4">
@@ -188,7 +190,17 @@ function MyBetRow({ bet, currency }: { bet: BetHistoryItem; currency: 'USD' | 'E
             {isYes ? 'Yes' : 'No'}
           </span>
           <p className="m-0 mt-1 text-sm font-bold text-vantage-fg">{formatMoney(bet.amount, currency)}</p>
-          <p className="m-0 mt-1 text-xs text-vantage-muted">{bet.status}</p>
+          <p className={cn(
+            'm-0 mt-1 text-xs font-bold',
+            isWon && 'text-vantage-yes',
+            isLost && 'text-vantage-no',
+            !isWon && !isLost && 'text-vantage-muted',
+          )}>
+            {bet.status}
+            {isWon && bet.settlementAmount != null && (
+              <> · +{formatMoney(bet.settlementAmount, currency)}</>
+            )}
+          </p>
         </div>
       </div>
     </li>

@@ -37,4 +37,22 @@ public static class WalletRules
         ArgumentNullException.ThrowIfNull(wallet);
         return TryGetBetDebitAmount(wallet, betSlipId, out var existingAmount) && existingAmount != amount;
     }
+
+    public static bool TryGetBetCreditAmount(WalletState wallet, Guid betSlipId, out decimal amount)
+    {
+        ArgumentNullException.ThrowIfNull(wallet);
+        return wallet.BetCreditsBySlipId.TryGetValue(betSlipId, out amount);
+    }
+
+    public static bool IsMatchingBetCredit(WalletState wallet, Guid betSlipId, decimal amount)
+    {
+        ArgumentNullException.ThrowIfNull(wallet);
+        return TryGetBetCreditAmount(wallet, betSlipId, out var existingAmount) && existingAmount == amount;
+    }
+
+    public static bool HasConflictingBetCredit(WalletState wallet, Guid betSlipId, decimal amount)
+    {
+        ArgumentNullException.ThrowIfNull(wallet);
+        return TryGetBetCreditAmount(wallet, betSlipId, out var existingAmount) && existingAmount != amount;
+    }
 }

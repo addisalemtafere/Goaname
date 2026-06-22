@@ -13,5 +13,7 @@ public sealed record BetHistoryItemDto
     public required decimal SharesReceived { get; init; }
     public required decimal OddsAtPlacement { get; init; }
     public required BetStatus Status { get; init; }
+    public decimal? SettlementAmount { get; init; }
     public required DateTimeOffset PlacedAt { get; init; }
+    public DateTimeOffset? SettledAt { get; init; }
 }

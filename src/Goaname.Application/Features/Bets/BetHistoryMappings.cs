@@ -1,4 +1,5 @@
 using Goaname.Application.Common.Abstractions;
+using Goaname.Application.Common.Mappings;
 using Goaname.Application.Features.Bets.PlaceBet;
 using Goaname.Application.Transactions;
 using Goaname.Contracts.Bets;
@@ -9,19 +10,7 @@ namespace Goaname.Application.Features.Bets;
 internal static class BetHistoryMappings
 {
     public static BetHistoryItemDto ToDto(BetHistoryEntry entry) =>
-        new()
-        {
-            BetSlipId = entry.BetSlipId,
-            MarketId = entry.MarketId,
-            MarketTitle = entry.MarketTitle,
-            Category = entry.Category,
-            Outcome = entry.SelectedOutcome,
-            Amount = entry.Amount,
-            SharesReceived = entry.PotentialPayout,
-            OddsAtPlacement = entry.OddsAtPlacement,
-            Status = entry.Status,
-            PlacedAt = entry.PlacedAt,
-        };
+        BetHistoryEntryMapper.ToBetHistoryItemDto(entry);
 
     public static BetHistoryRecord FromPlaceBet(
         PlaceBetCommand command,

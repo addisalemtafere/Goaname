@@ -21,4 +21,10 @@ public interface IBetSlipGrain : IGrainWithStringKey
         decimal amount,
         decimal oddsAtPlacement,
         decimal sharesReceived);
+
+    /// <summary>
+    /// Marks the bet slip won or lost. Idempotent when called again with the same status and payout.
+    /// </summary>
+    [Alias("SettleAsync")]
+    public Task SettleAsync(BetStatus status, decimal settlementAmount);
 }

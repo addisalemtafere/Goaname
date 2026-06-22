@@ -67,6 +67,49 @@ public class BetSlipGrain : Grain, IBetSlipGrain
         await _state.WriteStateAsync().ConfigureAwait(true);
     }
 
+    [Transaction(TransactionOption.CreateOrJoin)]
+    public async Task SettleAsync(BetStatus status, decimal settlementAmount)
+    {
+        EnsureCreated();
+
+        if (status is not BetStatus.Won and not BetStatus.Lost)
+        {
+            throw new BusinessRuleException("Settlement status must be Won or Lost.");
+        }
+
+        if (settlementAmount < 0)
+        {
+            throw new BusinessRuleException("Settlement amount cannot be negative.");
+        }
+
+        if (status == BetStatus.Lost && settlementAmount != 0)
+        {
+            throw new BusinessRuleException("Lost bets must have zero settlement amount.");
+        }
+
+        if (BetSlipRules.IsSettled(_state.State))
+        {
+            if (BetSlipRules.IsMatchingSettlement(_state.State, status, settlementAmount))
+            {
+                return;
+            }
+
+            throw new BusinessRuleException("Bet slip is already settled.");
+        }
+
+        if (_state.State.Status != BetStatus.Pending)
+        {
+            throw new BusinessRuleException("Only pending bet slips can be settled.");
+        }
+
+        var settledAt = DateTimeOffset.UtcNow;
+        _state.State.Status = status;
+        _state.State.SettlementAmount = settlementAmount;
+        _state.State.SettledAt = settledAt;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
     private void InitializeState(
         string tenantId,
         Guid userId,

@@ -27,7 +27,9 @@ public sealed record BetHistoryEntry(
     decimal PotentialPayout,
     decimal OddsAtPlacement,
     BetStatus Status,
-    DateTimeOffset PlacedAt);
+    decimal? SettlementAmount,
+    DateTimeOffset PlacedAt,
+    DateTimeOffset? SettledAt);
 
 public sealed record BetHistoryStats(decimal Volume24h, int BetsToday);
 
@@ -48,5 +50,18 @@ public interface IBetHistoryRepository
 
     public Task<BetHistoryStats> GetTenantStatsAsync(
         string tenantId,
+        CancellationToken cancellationToken = default);
+
+    public Task<IReadOnlyList<BetHistoryEntry>> ListByMarketAsync(
+        string tenantId,
+        Guid marketId,
+        BetStatus? status = null,
+        CancellationToken cancellationToken = default);
+
+    public Task RecordSettlementAsync(
+        Guid betSlipId,
+        BetStatus status,
+        decimal settlementAmount,
+        DateTimeOffset settledAt,
         CancellationToken cancellationToken = default);
 }

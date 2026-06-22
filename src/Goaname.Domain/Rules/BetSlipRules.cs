@@ -35,4 +35,18 @@ public static class BetSlipRules
             && existing.OddsAtPlacement == oddsAtPlacement
             && existing.SharesReceived == sharesReceived;
     }
+
+    public static bool IsSettled(BetSlipState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        return state.Status is BetStatus.Won or BetStatus.Lost or BetStatus.Cancelled or BetStatus.Refunded;
+    }
+
+    public static bool IsMatchingSettlement(BetSlipState state, BetStatus status, decimal settlementAmount)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        return state.Status == status
+            && state.SettlementAmount == settlementAmount
+            && state.SettledAt.HasValue;
+    }
 }

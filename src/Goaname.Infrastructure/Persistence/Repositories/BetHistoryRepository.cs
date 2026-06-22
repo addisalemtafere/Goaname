@@ -66,6 +66,73 @@ public sealed class BetHistoryRepository(GoanameDbContext dbContext) : IBetHisto
         return new BetHistoryStats(volume24h, betsToday);
     }
 
+    public async Task<IReadOnlyList<BetHistoryEntry>> ListByMarketAsync(
+        string tenantId,
+        Guid marketId,
+        BetStatus? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.BetHistory
+            .AsNoTracking()
+            .Where(b => b.TenantId == tenantId && b.MarketId == marketId);
+
+        if (status.HasValue)
+        {
+            query = query.Where(b => b.Status == status.Value);
+        }
+
+        query = status == BetStatus.Pending
+            ? query.OrderBy(b => b.PlacedAt)
+            : query.OrderByDescending(b => b.PlacedAt);
+
+        var rows = await query.ToListAsync(cancellationToken).ConfigureAwait(false);
+        return rows.Select(ToEntry).ToList();
+    }
+
+    public async Task RecordSettlementAsync(
+        Guid betSlipId,
+        BetStatus status,
+        decimal settlementAmount,
+        DateTimeOffset settledAt,
+        CancellationToken cancellationToken = default)
+    {
+        var utcSettledAt = EnsureUtc(settledAt);
+
+        var updated = await dbContext.BetHistory
+            .Where(b => b.Id == betSlipId && b.Status == BetStatus.Pending)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(b => b.Status, status)
+                    .SetProperty(b => b.SettlementAmount, settlementAmount)
+                    .SetProperty(b => b.SettledAt, utcSettledAt),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (updated > 0)
+        {
+            return;
+        }
+
+        var existing = await dbContext.BetHistory
+            .AsNoTracking()
+            .Where(b => b.Id == betSlipId)
+            .Select(b => new { b.Status, b.SettlementAmount })
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (existing is null)
+        {
+            return;
+        }
+
+        if (existing.Status == status && existing.SettlementAmount == settlementAmount)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException($"Bet slip {betSlipId} is already settled.");
+    }
+
     private async Task<IReadOnlyList<BetHistoryEntry>> ListAsync(
         Func<IQueryable<BetHistoryProjection>, IQueryable<BetHistoryProjection>> filter,
         int limit,
@@ -110,7 +177,9 @@ public sealed class BetHistoryRepository(GoanameDbContext dbContext) : IBetHisto
             row.PotentialPayout,
             row.OddsAtPlacement,
             row.Status,
-            row.PlacedAt);
+            row.SettlementAmount,
+            row.PlacedAt,
+            row.SettledAt);
 
     private static DateTimeOffset EnsureUtc(DateTimeOffset value) =>
         value.Offset == TimeSpan.Zero ? value : value.ToUniversalTime();

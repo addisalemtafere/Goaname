@@ -89,6 +89,66 @@ public class MarketGrain : Grain, IMarketGrain
         await catalog.RegisterAsync(_state.State.Id).ConfigureAwait(true);
     }
 
+    public async Task CloseTradingAsync()
+    {
+        EnsureCreated();
+
+        var failureReason = MarketLifecycleRules.GetCloseTradingFailureReason(_state.State);
+        if (failureReason is not null)
+        {
+            throw new BusinessRuleException(failureReason);
+        }
+
+        _state.State.Status = MarketStatus.Closing;
+        _state.State.YesBettingEnabled = false;
+        _state.State.NoBettingEnabled = false;
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
+    public async Task ResolveAsync(Outcome winningOutcome)
+    {
+        EnsureCreated();
+
+        if (winningOutcome is not Outcome.Yes and not Outcome.No)
+        {
+            throw new BusinessRuleException("Winning outcome must be Yes or No.");
+        }
+
+        var failureReason = MarketLifecycleRules.GetResolveFailureReason(_state.State);
+        if (failureReason is not null)
+        {
+            throw new BusinessRuleException(failureReason);
+        }
+
+        var utcNow = DateTimeOffset.UtcNow;
+        _state.State.Status = MarketStatus.Resolved;
+        _state.State.WinningOutcome = winningOutcome;
+        _state.State.ResolutionAt = utcNow;
+        _state.State.YesBettingEnabled = false;
+        _state.State.NoBettingEnabled = false;
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
+    public async Task MarkSettledAsync()
+    {
+        EnsureCreated();
+
+        if (_state.State.Status == MarketStatus.Settled)
+        {
+            return;
+        }
+
+        var failureReason = MarketLifecycleRules.GetSettleFailureReason(_state.State);
+        if (failureReason is not null)
+        {
+            throw new BusinessRuleException(failureReason);
+        }
+
+        _state.State.Status = MarketStatus.Settled;
+        _state.State.SettledAt = DateTimeOffset.UtcNow;
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
     public Task<OddsSnapshot> GetOddsAsync()
     {
         EnsureCreated();

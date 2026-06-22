@@ -21,6 +21,15 @@ public interface IMarketGrain : IGrainWithStringKey
     [Alias("PublishAsync")]
     public Task PublishAsync();
 
+    [Alias("CloseTradingAsync")]
+    public Task CloseTradingAsync();
+
+    [Alias("ResolveAsync")]
+    public Task ResolveAsync(Outcome winningOutcome);
+
+    [Alias("MarkSettledAsync")]
+    public Task MarkSettledAsync();
+
     [Alias("GetOddsAsync")]
     public Task<OddsSnapshot> GetOddsAsync();
 

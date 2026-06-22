@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { betSideToOutcome, placeBet, type PlaceBetResponse } from '../../api/bets';
 import { formatCategoryLabel } from '../../api/categories';
-import { daysUntil, toCardPercent, type MarketDto } from '../../api/markets';
+import { daysUntil, isBettingOpen, isSettledMarket, toCardPercent, type MarketDto } from '../../api/markets';
 import { formatMoney, type Wallet } from '../../api/users';
 import { Alert, Button, Card, cn, Field, IconButton, Input } from '../ui';
 
@@ -33,8 +33,13 @@ export function MarketCard({
   const daysLeft = daysUntil(market.tradingEndsAt);
   const expiryLabel = formatExpiry(market.tradingEndsAt, daysLeft);
   const isExpanded = expandedSide !== null;
+  const bettingOpen = isBettingOpen(market);
+  const settled = isSettledMarket(market);
 
   function handleSideClick(side: BetSide) {
+    if (!bettingOpen) {
+      return;
+    }
     if (!isAuthenticated) {
       onSignIn();
       return;
@@ -64,6 +69,12 @@ export function MarketCard({
           {market.title}
         </h2>
 
+        {settled && market.winningOutcome && (
+          <p className="mb-4 rounded-lg bg-vantage-accent/10 px-3 py-2 text-xs font-bold text-vantage-accent">
+            Settled · {market.winningOutcome} won
+          </p>
+        )}
+
         <ProbabilitySection
           yesPercent={yesPercent}
           noPercent={noPercent}
@@ -71,22 +82,28 @@ export function MarketCard({
           noPrice={noPrice}
         />
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button
-            variant="buyYes"
-            onClick={() => handleSideClick('yes')}
-            className={expandedSide === 'yes' ? 'bg-vantage-yes text-black' : undefined}
-          >
-            Buy Yes
-          </Button>
-          <Button
-            variant="buyNo"
-            onClick={() => handleSideClick('no')}
-            className={expandedSide === 'no' ? 'bg-vantage-no text-white' : undefined}
-          >
-            Buy No
-          </Button>
-        </div>
+        {bettingOpen ? (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Button
+              variant="buyYes"
+              onClick={() => handleSideClick('yes')}
+              className={expandedSide === 'yes' ? 'bg-vantage-yes text-black' : undefined}
+            >
+              Buy Yes
+            </Button>
+            <Button
+              variant="buyNo"
+              onClick={() => handleSideClick('no')}
+              className={expandedSide === 'no' ? 'bg-vantage-no text-white' : undefined}
+            >
+              Buy No
+            </Button>
+          </div>
+        ) : (
+          <p className="mt-4 text-center text-xs font-semibold text-vantage-muted uppercase tracking-wide">
+            {settled ? 'Trading closed · Settled' : 'Trading closed'}
+          </p>
+        )}
 
         <div className="mt-4 flex justify-between text-[11px] font-medium tracking-wide text-vantage-muted uppercase">
           <span>Vol: ${formatVolume(market.totalVolume)}</span>

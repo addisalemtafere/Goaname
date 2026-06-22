@@ -291,7 +291,13 @@ function App() {
               onMenuClick={() => setMobileNavOpen(true)}
             />
             <div className={`${appContainerClass} flex-1`}>
-              <MarketAdminPanel onMarketsChanged={refreshMarkets} />
+              <MarketAdminPanel
+                onMarketsChanged={() => {
+                  refreshMarkets();
+                  refreshActivity();
+                  void refresh();
+                }}
+              />
             </div>
           </div>
         </div>
