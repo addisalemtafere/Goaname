@@ -4,7 +4,7 @@ import {
   formatCategoryLabel,
   listCategories,
   removeCategory,
-} from '../api/categories';
+} from '../../api/categories';
 import {
   createMarket,
   defaultTradingEndsAt,
@@ -17,8 +17,22 @@ import {
   toCardPercent,
   type MarketDto,
   type OddsSnapshot,
-} from '../api/markets';
-import { btnPrimary, btnSecondary, inputClass, labelClass } from './ui/classes';
+} from '../../api/markets';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DetailRow,
+  EmptyState,
+  Field,
+  Input,
+  PageHeader,
+  PanelSection,
+  Select,
+  Tag,
+  cn,
+} from '../ui';
 
 interface CreateFormState {
   title: string;
@@ -222,53 +236,39 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
   const selectedMarket = markets.find((market) => market.id === selectedMarketId) ?? null;
 
   return (
-    <section className="mb-8 grid gap-6 rounded-xl border border-slate-700 bg-slate-800 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="m-0 text-xl font-bold text-slate-100">Manage Markets</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Create drafts, publish to the public catalog, and inspect odds. A dedicated admin dashboard will replace this later.
-          </p>
-        </div>
-        <button type="button" onClick={() => void loadMarkets()} className={btnSecondary}>
-          Refresh
-        </button>
-      </div>
+    <Card className="mb-8 grid gap-6 rounded-xl p-6 shadow-sm">
+      <PageHeader
+        title="Manage Markets"
+        subtitle="Create drafts, publish to the public catalog, and inspect odds."
+        size="compact"
+        action={
+          <Button variant="secondary" onClick={() => void loadMarkets()}>
+            Refresh
+          </Button>
+        }
+      />
 
-      {error && (
-        <div className="rounded-lg border border-red-500 bg-red-500/10 px-4 py-3 text-red-400">
-          {error}
-        </div>
-      )}
+      {error && <Alert>{error}</Alert>}
 
-      <section className="grid gap-4 rounded-lg border border-slate-700 bg-slate-900/50 p-5">
-        <h3 className="m-0 text-lg font-semibold text-slate-100">Manage categories</h3>
-        <p className="m-0 mb-4 text-sm text-slate-400">
-          Categories available when creating markets. At least one category must remain.
-        </p>
-
+      <PanelSection
+        title="Manage categories"
+        description="Categories available when creating markets. At least one category must remain."
+      >
         {categoriesLoading && (
-          <div className="mb-4 text-slate-400">Loading categories...</div>
+          <p className="m-0 text-sm text-vantage-muted">Loading categories...</p>
         )}
 
         {!categoriesLoading && categories.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {categories.map((category) => (
-              <span
+              <Tag
                 key={category}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                removeLabel={`Remove ${category}`}
+                removeDisabled={categories.length <= 1 || removingCategory === category}
+                onRemove={() => void handleRemoveCategory(category)}
               >
                 {formatCategoryLabel(category)}
-                <button
-                  type="button"
-                  disabled={categories.length <= 1 || removingCategory === category}
-                  onClick={() => void handleRemoveCategory(category)}
-                  aria-label={`Remove ${category}`}
-                  className="cursor-pointer border-none bg-transparent p-0 text-lg leading-none text-slate-500 hover:text-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  ×
-                </button>
-              </span>
+              </Tag>
             ))}
           </div>
         )}
@@ -277,165 +277,143 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
           onSubmit={(event) => void handleAddCategory(event)}
           className="flex flex-wrap items-end gap-3"
         >
-          <label className={`${labelClass} min-w-[220px] flex-1`}>
-            New category
-            <input
+          <Field label="New category" className="min-w-[220px] flex-1">
+            <Input
               value={newCategoryName}
               onChange={(event) => setNewCategoryName(event.target.value)}
               placeholder="e.g. world-cup"
               maxLength={100}
-              className={inputClass}
             />
-          </label>
-          <button
-            type="submit"
-            disabled={addingCategory || !newCategoryName.trim()}
-            className={btnPrimary}
-          >
+          </Field>
+          <Button type="submit" disabled={addingCategory || !newCategoryName.trim()}>
             {addingCategory ? 'Adding...' : 'Add category'}
-          </button>
+          </Button>
         </form>
-      </section>
+      </PanelSection>
 
-      <form
-        onSubmit={(event) => void handleCreate(event)}
-        className="grid gap-4 rounded-lg border border-slate-700 bg-slate-900/50 p-5"
-      >
-        <h3 className="m-0 text-lg font-semibold text-slate-100">Create market</h3>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-          <label className={labelClass}>
-            Title
-            <input
-              required
-              minLength={3}
-              maxLength={200}
-              value={form.title}
-              onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Will it rain tomorrow?"
-              className={inputClass}
-            />
-          </label>
+      <PanelSection title="Create market">
+        <form onSubmit={(event) => void handleCreate(event)} className="grid gap-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+            <Field label="Title">
+              <Input
+                required
+                minLength={3}
+                maxLength={200}
+                value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder="Will it rain tomorrow?"
+              />
+            </Field>
 
-          <label className={labelClass}>
-            Category
-            <select
-              required
-              value={form.category}
-              disabled={categoriesLoading || categories.length === 0}
-              onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
-              className={inputClass}
-            >
-              {categories.length === 0 ? (
-                <option value="">No categories available</option>
-              ) : (
-                categories.map((category) => (
-                  <option key={category} value={category}>
-                    {formatCategoryLabel(category)}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
+            <Field label="Category">
+              <Select
+                required
+                value={form.category}
+                disabled={categoriesLoading || categories.length === 0}
+                onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
+              >
+                {categories.length === 0 ? (
+                  <option value="">No categories available</option>
+                ) : (
+                  categories.map((category) => (
+                    <option key={category} value={category}>
+                      {formatCategoryLabel(category)}
+                    </option>
+                  ))
+                )}
+              </Select>
+            </Field>
 
-          <label className={labelClass}>
-            Trading ends
-            <input
-              required
-              type="datetime-local"
-              value={form.tradingEndsAt}
-              onChange={(event) => setForm((current) => ({ ...current, tradingEndsAt: event.target.value }))}
-              className={inputClass}
-            />
-          </label>
+            <Field label="Trading ends">
+              <Input
+                required
+                type="datetime-local"
+                value={form.tradingEndsAt}
+                onChange={(event) => setForm((current) => ({ ...current, tradingEndsAt: event.target.value }))}
+              />
+            </Field>
 
-          <label className={labelClass}>
-            Liquidity (optional)
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={form.liquidityParameter}
-              onChange={(event) => setForm((current) => ({ ...current, liquidityParameter: event.target.value }))}
-              placeholder="Uses tenant default"
-              className={inputClass}
-            />
-          </label>
-        </div>
+            <Field label="Liquidity (optional)">
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={form.liquidityParameter}
+                onChange={(event) => setForm((current) => ({ ...current, liquidityParameter: event.target.value }))}
+                placeholder="Uses tenant default"
+              />
+            </Field>
+          </div>
 
-        <button
-          type="submit"
-          disabled={creating || categories.length === 0}
-          className={`${btnPrimary} w-fit`}
-        >
-          {creating ? 'Creating...' : 'Create draft'}
-        </button>
-      </form>
+          <Button type="submit" disabled={creating || categories.length === 0} className="w-fit">
+            {creating ? 'Creating...' : 'Create draft'}
+          </Button>
+        </form>
+      </PanelSection>
 
       <div className="grid gap-4">
-        <h3 className="m-0 text-lg font-semibold text-slate-100">All markets</h3>
+        <h3 className="m-0 text-lg font-bold text-vantage-fg">All markets</h3>
 
         {loading && (
-          <div className="text-slate-400">Loading markets...</div>
+          <p className="m-0 text-sm text-vantage-muted">Loading markets...</p>
         )}
 
         {!loading && markets.length === 0 && (
-          <div className="rounded-lg border border-dashed border-slate-600 p-4 text-slate-400">
-            No markets yet. Create a draft above.
-          </div>
+          <EmptyState
+            title="No markets yet"
+            description="Create a draft above."
+            className="rounded-xl py-8"
+          />
         )}
 
         {!loading && markets.length > 0 && (
           <div className="grid gap-3">
             {markets.map((market) => (
-              <article
+              <Card
                 key={market.id}
-                className={`flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-slate-900/50 p-4 ${
-                  selectedMarketId === market.id ? 'border-blue-500' : 'border-slate-700'
-                }`}
+                as="article"
+                variant="elevated"
+                className={cn(
+                  'flex flex-wrap items-center justify-between gap-4 rounded-lg p-4',
+                  selectedMarketId === market.id && 'border-vantage-accent',
+                )}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <strong className="text-slate-100">{market.title}</strong>
+                    <strong className="text-vantage-fg">{market.title}</strong>
                     <StatusBadge status={market.status} visible={market.isVisible} />
                   </div>
-                  <div className="mt-2 break-all text-sm text-slate-500">
+                  <p className="mt-2 break-all text-sm text-vantage-muted">
                     {market.category} · ends {new Date(market.tradingEndsAt).toLocaleString()} · {market.id}
-                  </div>
-                  <div className="mt-2 text-sm text-slate-500">
+                  </p>
+                  <p className="mt-2 text-sm text-vantage-muted">
                     {toCardPercent(market.yesProbability)}% Yes · {market.yesMultiplier.toFixed(2)}x /
                     {' '}{toCardPercent(market.noProbability)}% No · {market.noMultiplier.toFixed(2)}x
-                  </div>
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMarketId(market.id)}
-                    className={btnSecondary}
-                  >
+                  <Button variant="secondary" onClick={() => setSelectedMarketId(market.id)}>
                     Details
-                  </button>
+                  </Button>
                   {isDraftMarket(market) && (
-                    <button
-                      type="button"
+                    <Button
                       disabled={publishingId === market.id}
                       onClick={() => void handlePublish(market.id)}
-                      className={btnPrimary}
                     >
                       {publishingId === market.id ? 'Publishing...' : 'Publish'}
-                    </button>
+                    </Button>
                   )}
                 </div>
-              </article>
+              </Card>
             ))}
           </div>
         )}
       </div>
 
       {selectedMarket && (
-        <aside className="rounded-lg border border-slate-700 bg-slate-900/50 p-5">
-          <h3 className="m-0 text-lg font-semibold text-slate-100">Market details</h3>
-          <dl className="mb-4 mt-4 grid grid-cols-[120px_1fr] gap-x-4 gap-y-2">
+        <PanelSection title="Market details">
+          <dl className="mb-4 grid grid-cols-[120px_1fr] gap-x-4 gap-y-2">
             <DetailRow label="Title" value={selectedMarket.title} />
             <DetailRow label="Status" value={formatMarketStatus(selectedMarket.status)} />
             <DetailRow label="Visible" value={selectedMarket.isVisible ? 'Yes' : 'No'} />
@@ -444,18 +422,18 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
           </dl>
 
           {oddsLoading && (
-            <div className="text-sm text-slate-400">Loading live odds...</div>
+            <p className="m-0 text-sm text-vantage-muted">Loading live odds...</p>
           )}
 
           {!oddsLoading && selectedOdds && (
-            <div className="grid gap-2 text-sm text-slate-400">
-              <div>Yes: {toCardPercent(selectedOdds.yesProbability)}% ({selectedOdds.yesMultiplier.toFixed(2)}x)</div>
-              <div>No: {toCardPercent(selectedOdds.noProbability)}% ({selectedOdds.noMultiplier.toFixed(2)}x)</div>
+            <div className="grid gap-2 text-sm text-vantage-muted">
+              <p className="m-0">Yes: {toCardPercent(selectedOdds.yesProbability)}% ({selectedOdds.yesMultiplier.toFixed(2)}x)</p>
+              <p className="m-0">No: {toCardPercent(selectedOdds.noProbability)}% ({selectedOdds.noMultiplier.toFixed(2)}x)</p>
             </div>
           )}
-        </aside>
+        </PanelSection>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -464,23 +442,8 @@ function StatusBadge({ status, visible }: { status: MarketDto['status']; visible
   const isDraft = status === 0;
 
   return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-        isDraft
-          ? 'bg-amber-500/15 text-amber-400'
-          : 'bg-emerald-500/15 text-emerald-400'
-      }`}
-    >
+    <Badge variant={isDraft ? 'draft' : 'accent'}>
       {label}{visible ? ' · Live' : ''}
-    </span>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <dt className="m-0 text-sm text-slate-500">{label}</dt>
-      <dd className="m-0 text-sm text-slate-200">{value}</dd>
-    </>
+    </Badge>
   );
 }
