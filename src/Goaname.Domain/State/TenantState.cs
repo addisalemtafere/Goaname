@@ -23,7 +23,7 @@ public class TenantState
     /// <summary>Empty collection means all categories are allowed.</summary>
     [Id(6)] public ICollection<string> EnabledCategories { get; } = [];
 
-    [Id(7)] public string Currency { get; set; } = "KES";
+    [Id(7)] public string Currency { get; set; } = "USD";
     [Id(8)] public decimal PlatformFeePercent { get; set; } = 2.5m;
     [Id(9)] public decimal MaxBetAmount { get; set; } = 10_000m;
     [Id(10)] public decimal DefaultLiquidityParameter { get; set; } = 1000m;
