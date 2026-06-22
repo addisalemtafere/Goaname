@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { PlaceBetResponse } from '../api/bets';
 import { listCategories } from '../api/categories';
 import { TENANT_ID, listMarkets, type MarketDto } from '../api/markets';
 import { ActivityPage } from '../components/activity';
@@ -34,6 +35,7 @@ import {
   publicContainerClass,
   publicMobileBottomPadClass,
 } from '../components/ui';
+import { DepositPanel } from '../components/wallet';
 import { useAuth } from '../hooks/useAuth';
 
 async function ensureDemoTenant() {
@@ -45,10 +47,11 @@ async function ensureDemoTenant() {
 }
 
 function App() {
-  const { user, wallet, loading: authLoading, error, isAuthenticated, signIn, signUp, signOut } = useAuth();
+  const { user, wallet, loading: authLoading, error, isAuthenticated, refresh, signIn, signUp, signOut } = useAuth();
   const [shell, setShell] = useState<AppShell>('public');
   const [publicPage, setPublicPage] = useState<PublicPage>('markets');
   const [showAuthPanel, setShowAuthPanel] = useState(false);
+  const [showDepositPanel, setShowDepositPanel] = useState(false);
   const [markets, setMarkets] = useState<MarketDto[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState<string | null>(null);
@@ -139,6 +142,24 @@ function App() {
     setMobileNavOpen(false);
   }
 
+  function handleBetPlaced(marketId: string, response: PlaceBetResponse) {
+    setMarkets((current) =>
+      current.map((market) =>
+        market.id === marketId
+          ? {
+              ...market,
+              yesProbability: response.updatedOdds.yesProbability,
+              noProbability: response.updatedOdds.noProbability,
+              yesMultiplier: response.updatedOdds.yesMultiplier,
+              noMultiplier: response.updatedOdds.noMultiplier,
+            }
+          : market,
+      ),
+    );
+    void refresh();
+    refreshMarkets();
+  }
+
   const browseContent = (
     <>
       {isAuthenticated && user && user.kycStatus !== 'Verified' && (
@@ -191,6 +212,8 @@ function App() {
           markets={filteredMarkets}
           isAuthenticated={isAuthenticated}
           onSignIn={openSignIn}
+          wallet={wallet}
+          onBetPlaced={handleBetPlaced}
         />
       )}
     </>
@@ -221,6 +244,17 @@ function App() {
     </Modal>
   );
 
+  const depositModal = showDepositPanel && user && (
+    <Modal open={showDepositPanel} onClose={() => setShowDepositPanel(false)}>
+      <DepositPanel
+        user={user}
+        wallet={wallet}
+        onClose={() => setShowDepositPanel(false)}
+        onDeposited={() => void refresh()}
+      />
+    </Modal>
+  );
+
   if (isAuthenticated && user && shell === 'admin') {
     const manageMeta = getManageTitle();
 
@@ -232,6 +266,7 @@ function App() {
             wallet={wallet}
             onBackToSite={() => backToSite('markets')}
             onLogout={handleLogout}
+            onAddFunds={() => setShowDepositPanel(true)}
             tenantId={TENANT_ID}
             mobileOpen={mobileNavOpen}
             onMobileClose={() => setMobileNavOpen(false)}
@@ -249,6 +284,7 @@ function App() {
             </div>
           </div>
         </div>
+        {depositModal}
         {authLoading && <LoadingOverlay message="Loading account..." />}
       </>
     );

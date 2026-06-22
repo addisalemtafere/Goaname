@@ -4,6 +4,7 @@ using Goaname.Domain.Rules;
 using Goaname.Domain.State;
 using Goaname.Grains.Interfaces;
 using Orleans.Runtime;
+using Orleans.Transactions;
 
 namespace Goaname.Grains;
 
@@ -130,18 +131,54 @@ public class UserGrain : Grain, IUserGrain
 
         EnsureWalletActive();
 
-        if (_state.State.Wallet.Balance < amount)
+        if (!WalletRules.HasSufficientBalance(_state.State.Wallet, amount))
         {
             throw new BusinessRuleException("Insufficient wallet balance.");
         }
 
+        ApplyDebit(amount);
+        await _state.WriteStateAsync().ConfigureAwait(true);
+        return _state.State.Wallet;
+    }
+
+    [Transaction(TransactionOption.CreateOrJoin)]
+    public async Task<WalletState> DebitForBetAsync(decimal amount, Guid betSlipId)
+    {
+        if (betSlipId == Guid.Empty)
+        {
+            throw new BusinessRuleException("Bet slip id is required.");
+        }
+
+        EnsureWalletActive();
+
+        if (WalletRules.IsMatchingBetDebit(_state.State.Wallet, betSlipId, amount))
+        {
+            return _state.State.Wallet;
+        }
+
+        if (WalletRules.HasConflictingBetDebit(_state.State.Wallet, betSlipId, amount))
+        {
+            throw new BusinessRuleException("Bet slip debit already recorded with a different amount.");
+        }
+
+        if (!WalletRules.HasSufficientBalance(_state.State.Wallet, amount))
+        {
+            throw new BusinessRuleException("Insufficient wallet balance.");
+        }
+
+        ApplyDebit(amount);
+        _state.State.Wallet.BetDebitsBySlipId[betSlipId] = amount;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+        return _state.State.Wallet;
+    }
+
+    private void ApplyDebit(decimal amount)
+    {
         var now = DateTimeOffset.UtcNow;
         _state.State.Wallet.Balance -= amount;
         _state.State.Wallet.LastUpdated = now;
         _state.State.LastActiveAt = now;
-
-        await _state.WriteStateAsync().ConfigureAwait(true);
-        return _state.State.Wallet;
     }
 
     private void EnsureInitialized()
@@ -156,7 +193,7 @@ public class UserGrain : Grain, IUserGrain
     {
         EnsureInitialized();
 
-        if (_state.State.Wallet.Status != WalletStatus.Active)
+        if (!WalletRules.IsActive(_state.State.Wallet))
         {
             throw new BusinessRuleException("Wallet is not active.");
         }

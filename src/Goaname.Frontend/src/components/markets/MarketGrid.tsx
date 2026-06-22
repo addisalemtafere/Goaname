@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import type { PlaceBetResponse } from '../../api/bets';
 import type { MarketDto } from '../../api/markets';
+import type { Wallet } from '../../api/users';
 import { Card } from '../ui';
 import { MarketCard, type BetSide } from './MarketCard';
 
@@ -7,9 +9,17 @@ interface MarketGridProps {
   markets: MarketDto[];
   isAuthenticated: boolean;
   onSignIn: () => void;
+  wallet: Wallet | null;
+  onBetPlaced: (marketId: string, response: PlaceBetResponse) => void;
 }
 
-export function MarketGrid({ markets, isAuthenticated, onSignIn }: MarketGridProps) {
+export function MarketGrid({
+  markets,
+  isAuthenticated,
+  onSignIn,
+  wallet,
+  onBetPlaced,
+}: MarketGridProps) {
   const [expanded, setExpanded] = useState<{ marketId: string; side: BetSide } | null>(null);
 
   function handleSelectSide(marketId: string, side: BetSide | null) {
@@ -37,6 +47,8 @@ export function MarketGrid({ markets, isAuthenticated, onSignIn }: MarketGridPro
           onSelectSide={(side) => handleSelectSide(market.id, side)}
           isAuthenticated={isAuthenticated}
           onSignIn={onSignIn}
+          wallet={wallet}
+          onBetPlaced={onBetPlaced}
         />
       ))}
     </div>

@@ -7,6 +7,7 @@ using Goaname.Domain.Rules;
 using Goaname.Domain.State;
 using Goaname.Grains.Interfaces;
 using Orleans.Runtime;
+using Orleans.Transactions;
 
 namespace Goaname.Grains;
 
@@ -100,6 +101,60 @@ public class MarketGrain : Grain, IMarketGrain
         return Task.FromResult(BuildSnapshot(_state.State));
     }
 
+    [Transaction(TransactionOption.CreateOrJoin)]
+    public async Task<PlaceBetResult> PlaceBetAsync(Guid userId, Outcome outcome, decimal amount)
+    {
+        EnsureCreated();
+
+        if (userId == Guid.Empty)
+        {
+            throw new BusinessRuleException("User id is required.");
+        }
+
+        var utcNow = DateTimeOffset.UtcNow;
+        var tenantState = await GetTenantStateAsync(_state.State.TenantId).ConfigureAwait(true);
+
+        var failureReason = MarketBetRules.GetPlacementFailureReason(
+            tenantState,
+            _state.State,
+            outcome,
+            amount,
+            utcNow);
+
+        if (failureReason is not null)
+        {
+            throw new BusinessRuleException(failureReason);
+        }
+
+        var oddsAtPlacement = MarketBetRules.GetOddsMultiplier(
+            _state.State.YesProbability,
+            _state.State.NoProbability,
+            outcome);
+
+        var effectiveBetAmount = MarketBetRules.CalculateEffectiveBetAmount(
+            amount,
+            tenantState.PlatformFeePercent);
+
+        var sharesReceived = MarketBetRules.CalculateSharesReceived(
+            _state.State,
+            outcome,
+            effectiveBetAmount);
+
+        MarketBetRules.ApplyVolumeDelta(_state.State, outcome, sharesReceived);
+        MarketBetRules.RecordTrader(_state.State, userId);
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+
+        return new PlaceBetResult
+        {
+            Outcome = outcome,
+            Amount = amount,
+            OddsAtPlacement = oddsAtPlacement,
+            SharesReceived = sharesReceived,
+            UpdatedOdds = ToOddsSnapshot(_state.State),
+        };
+    }
+
     private static MarketGrainSnapshot BuildSnapshot(MarketState state)
     {
         var odds = ToOddsSnapshot(state);
@@ -127,7 +182,7 @@ public class MarketGrain : Grain, IMarketGrain
     private void EnsureTenantMatchesKey(string tenantId)
     {
         var keyTenantId = GrainKeys.ParseTenantIdFromMarketKey(this.GetPrimaryKeyString());
-        if (!string.Equals(keyTenantId, tenantId, StringComparison.Ordinal))
+        if (!GrainKeyRules.TenantMatches(keyTenantId, tenantId))
         {
             throw new BusinessRuleException("Tenant id does not match market grain key.");
         }
@@ -147,6 +202,12 @@ public class MarketGrain : Grain, IMarketGrain
             throw new BusinessRuleException(
                 $"Category must be at most {MarketConstraints.CategoryMaxLength} characters.");
         }
+    }
+
+    private async Task<TenantState> GetTenantStateAsync(string tenantId)
+    {
+        var tenant = GrainFactory.GetGrain<ITenantGrain>(GrainKeys.Tenant(tenantId));
+        return await tenant.GetStateAsync().ConfigureAwait(true);
     }
 
     private async Task<decimal> GetTenantDefaultLiquidityAsync(string tenantId)

@@ -2,6 +2,7 @@ using Goaname.Application;
 using Goaname.Domain.Exceptions;
 using Goaname.Presentation.Endpoints;
 using Goaname.Presentation.Extensions;
+using System.Text.Json.Serialization;
 
 namespace Goaname.Presentation;
 
@@ -21,6 +22,10 @@ internal static class Program
                 policy.WithOrigins("http://localhost:5173")
                     .AllowAnyHeader()
                     .AllowAnyMethod());
+        });
+        builder.Services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
         builder.AddGoanameOrleans();
 
@@ -81,6 +86,7 @@ internal static class Program
         app.MapGet("/", () => "Goaname API is running");
         app.MapTenantEndpoints();
         app.MapMarketEndpoints();
+        app.MapBetEndpoints();
         app.MapUserEndpoints();
         app.MapAuthEndpoints();
         app.MapGoanameOrleansDashboard();

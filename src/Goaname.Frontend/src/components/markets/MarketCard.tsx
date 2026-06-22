@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { betSideToOutcome, placeBet, type PlaceBetResponse } from '../../api/bets';
 import { formatCategoryLabel } from '../../api/categories';
 import { daysUntil, toCardPercent, type MarketDto } from '../../api/markets';
-import { Button, Card, cn, IconButton } from '../ui';
+import { formatMoney, type Wallet } from '../../api/users';
+import { Alert, Button, Card, cn, Field, IconButton, Input } from '../ui';
 
 export type BetSide = 'yes' | 'no';
 
@@ -11,6 +13,8 @@ interface MarketCardProps {
   onSelectSide: (side: BetSide | null) => void;
   isAuthenticated: boolean;
   onSignIn: () => void;
+  wallet: Wallet | null;
+  onBetPlaced: (marketId: string, response: PlaceBetResponse) => void;
 }
 
 export function MarketCard({
@@ -19,6 +23,8 @@ export function MarketCard({
   onSelectSide,
   isAuthenticated,
   onSignIn,
+  wallet,
+  onBetPlaced,
 }: MarketCardProps) {
   const yesPercent = toCardPercent(market.yesProbability);
   const noPercent = toCardPercent(market.noProbability);
@@ -89,7 +95,13 @@ export function MarketCard({
       </div>
 
       {isExpanded && expandedSide && (
-        <BetPanel market={market} side={expandedSide} onClose={() => onSelectSide(null)} />
+        <BetPanel
+          market={market}
+          side={expandedSide}
+          wallet={wallet}
+          onClose={() => onSelectSide(null)}
+          onBetPlaced={onBetPlaced}
+        />
       )}
     </Card>
   );
@@ -135,48 +147,128 @@ function ProbabilitySection({
 function BetPanel({
   market,
   side,
+  wallet,
   onClose,
+  onBetPlaced,
 }: {
   market: MarketDto;
   side: BetSide;
+  wallet: Wallet | null;
   onClose: () => void;
+  onBetPlaced: (marketId: string, response: PlaceBetResponse) => void;
 }) {
-  const [shares, setShares] = useState(10);
-  const probability = side === 'yes' ? market.yesProbability : market.noProbability;
-  const cost = shares * probability;
+  const [amount, setAmount] = useState('10');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
   const isYes = side === 'yes';
+  const multiplier = isYes ? market.yesMultiplier : market.noMultiplier;
+  const parsedAmount = parseAmount(amount);
+  const estimatedPayout = parsedAmount !== null ? parsedAmount * multiplier : null;
+  const currency = wallet?.currency ?? 'USD';
+
+  async function handleConfirm() {
+    if (parsedAmount === null || parsedAmount <= 0) {
+      setError('Enter a valid bet amount.');
+      return;
+    }
+
+    if (wallet && parsedAmount > wallet.balance) {
+      setError('Insufficient wallet balance.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await placeBet(market.id, {
+        outcome: betSideToOutcome(side),
+        amount: parsedAmount,
+      });
+
+      onBetPlaced(market.id, response);
+      setSuccess(
+        `Bet placed · ${response.sharesReceived.toFixed(2)} shares @ ${response.oddsAtPlacement.toFixed(2)}x`,
+      );
+
+      window.setTimeout(() => {
+        onClose();
+      }, 1200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to place bet');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="border-t border-vantage-border bg-vantage-bg p-5">
       <div className="mb-4 flex items-center justify-between">
         <p className={`m-0 text-sm font-bold ${isYes ? 'text-vantage-yes' : 'text-vantage-no'}`}>
-          Buy {isYes ? 'Yes' : 'No'} · ${probability.toFixed(2)}/share
+          Buy {isYes ? 'Yes' : 'No'} · {multiplier.toFixed(2)}x
         </p>
         <IconButton label="Close bet panel" size="sm" onClick={onClose} className="border-none bg-transparent" />
       </div>
 
-      <label className="mb-1 block text-xs text-vantage-muted">
-        Shares: <span className="font-bold text-vantage-fg">{shares}</span>
-      </label>
-      <input
-        type="range"
-        min={1}
-        max={100}
-        value={shares}
-        onChange={(e) => setShares(Number(e.target.value))}
-        className="mb-4 w-full accent-vantage-accent"
-      />
+      {wallet && (
+        <p className="mb-3 text-xs text-vantage-muted">
+          Balance:{' '}
+          <span className="font-semibold text-vantage-fg">{formatMoney(wallet.balance, currency)}</span>
+        </p>
+      )}
 
-      <Card variant="elevated" className="mb-4 flex justify-between rounded-xl px-4 py-3">
-        <span className="text-sm text-vantage-muted">Total cost</span>
-        <span className="text-lg font-bold text-vantage-fg">${cost.toFixed(2)}</span>
+      <Field label="Bet amount">
+        <Input
+          type="number"
+          min={0.01}
+          step={0.01}
+          inputMode="decimal"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          disabled={submitting}
+          placeholder="10.00"
+        />
+      </Field>
+
+      <Card variant="elevated" className="my-4 flex justify-between rounded-xl px-4 py-3">
+        <span className="text-sm text-vantage-muted">Est. max payout</span>
+        <span className="text-lg font-bold text-vantage-fg">
+          {estimatedPayout !== null ? formatMoney(estimatedPayout, currency) : '—'}
+        </span>
       </Card>
 
-      <Button variant={isYes ? 'buyYes' : 'buyNo'}>
-        Confirm · {shares} shares · ${cost.toFixed(2)}
+      {error && (
+        <Alert className="mb-3">{error}</Alert>
+      )}
+
+      {success && (
+        <Alert variant="accent" className="mb-3">{success}</Alert>
+      )}
+
+      <Button
+        variant={isYes ? 'buyYes' : 'buyNo'}
+        disabled={submitting || parsedAmount === null || parsedAmount <= 0}
+        onClick={() => void handleConfirm()}
+      >
+        {submitting
+          ? 'Placing bet…'
+          : `Confirm · ${parsedAmount !== null ? formatMoney(parsedAmount, currency) : '—'}`}
       </Button>
     </div>
   );
+}
+
+function parseAmount(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function formatExpiry(tradingEndsAt: string, daysLeft: number): string {

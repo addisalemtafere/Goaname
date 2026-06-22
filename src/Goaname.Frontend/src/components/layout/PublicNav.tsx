@@ -61,7 +61,7 @@ export function PublicNav({
 
           {isAuthenticated && user ? (
             <>
-              <span className="hidden text-sm font-bold text-vantage-yes md:inline">
+              <span className="rounded-lg border border-vantage-border bg-vantage-elevated px-2 py-1 text-xs font-bold text-vantage-yes sm:text-sm">
                 {formatMoney(balance, normalizeCurrency(user.preferredCurrency))}
               </span>
               {onManage && (

@@ -41,4 +41,6 @@ public class MarketState
 
     /// <summary>When false, users cannot bet on No for this market.</summary>
     [Id(19)] public bool NoBettingEnabled { get; set; } = true;
+
+    [Id(20)] public HashSet<Guid> TradedUserIds { get; } = [];
 }

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Goaname.Application.Features.Users.DepositFunds;
 using Goaname.Application.Features.Users.GetCurrentUser;
 using Goaname.Application.Features.Users.GetCurrentUserWallet;
 using Goaname.Application.Features.Users.LinkPayoutAccount;
@@ -24,6 +25,7 @@ internal static class UserEndpoints
 
         group.MapGet("/me", GetCurrentUserAsync);
         group.MapGet("/me/wallet", GetCurrentUserWalletAsync);
+        group.MapPost("/me/deposit", DepositFundsAsync);
         group.MapPatch("/me/currency", UpdatePreferredCurrencyAsync);
         group.MapPost("/me/payout-account", LinkPayoutAccountAsync);
         group.MapPost("/me/payout-account/verify", VerifyPayoutAccountAsync);
@@ -56,6 +58,23 @@ internal static class UserEndpoints
         tenantId = httpContext.GetTenantId(tenantId);
 
         var wallet = await sender.Send(new GetCurrentUserWalletQuery(tenantId, userId)).ConfigureAwait(false);
+        return Results.Ok(wallet);
+    }
+
+    private static async Task<IResult> DepositFundsAsync(
+        HttpContext httpContext,
+        ISender sender,
+        string tenantId,
+        [FromBody] DepositFundsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var userId = httpContext.GetUserId();
+        tenantId = httpContext.GetTenantId(tenantId);
+
+        var wallet = await sender.Send(
+            DepositFundsCommand.FromRequest(tenantId, userId, request)).ConfigureAwait(false);
+
         return Results.Ok(wallet);
     }
 

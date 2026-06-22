@@ -75,6 +75,13 @@ export async function getWallet(): Promise<Wallet> {
   return apiFetch<Wallet>(`/api/tenants/${TENANT_ID}/users/me/wallet`);
 }
 
+export async function depositFunds(amount: number): Promise<Wallet> {
+  return apiFetch<Wallet>(`/api/tenants/${TENANT_ID}/users/me/deposit`, {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
+}
+
 export async function updateCurrency(currency: string): Promise<UserProfile> {
   return apiFetch<UserProfile>(`/api/tenants/${TENANT_ID}/users/me/currency`, {
     method: 'PATCH',

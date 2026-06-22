@@ -7,6 +7,7 @@ interface AppSidenavProps {
   wallet: Wallet | null;
   onBackToSite: () => void;
   onLogout: () => void;
+  onAddFunds: () => void;
   tenantId: string;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
@@ -17,6 +18,7 @@ export function AppSidenav({
   wallet,
   onBackToSite,
   onLogout,
+  onAddFunds,
   tenantId,
   mobileOpen = false,
   onMobileClose,
@@ -79,11 +81,20 @@ export function AppSidenav({
           </div>
 
           <div className="border-t border-vantage-border p-4">
-            <div className="mb-3 flex justify-between rounded-xl border border-vantage-yes/20 bg-vantage-yes/10 p-3 text-xs">
-              <span className="text-vantage-muted">Wallet</span>
-              <span className="font-bold text-vantage-yes">
-                {formatMoney(balance, normalizeCurrency(user.preferredCurrency))}
-              </span>
+            <div className="mb-3 rounded-xl border border-vantage-yes/20 bg-vantage-yes/10 p-3 text-xs">
+              <div className="flex justify-between">
+                <span className="text-vantage-muted">Wallet</span>
+                <span className="font-bold text-vantage-yes">
+                  {formatMoney(balance, normalizeCurrency(user.preferredCurrency))}
+                </span>
+              </div>
+              <Button
+                variant="secondary"
+                onClick={onAddFunds}
+                className="mt-2 w-full px-3 py-2 text-xs"
+              >
+                Add funds
+              </Button>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex min-w-0 flex-1 items-center gap-3">

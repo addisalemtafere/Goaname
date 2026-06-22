@@ -21,4 +21,7 @@ public class WalletState
     [Id(8)] public WalletStatus Status { get; set; } = WalletStatus.Active;
     [Id(9)] public DateTimeOffset LastUpdated { get; set; }
     [Id(10)] public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>Tracks bet debits by slip id for idempotent wallet operations.</summary>
+    [Id(11)] public Dictionary<Guid, decimal> BetDebitsBySlipId { get; } = new();
 }
