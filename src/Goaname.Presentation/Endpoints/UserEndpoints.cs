@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Goaname.Application.Features.Users.DepositFunds;
 using Goaname.Application.Features.Users.GetCurrentUser;
 using Goaname.Application.Features.Users.GetCurrentUserWallet;
+using Goaname.Application.Features.Bets.GetMyBets;
 using Goaname.Application.Features.Users.LinkPayoutAccount;
 using Goaname.Application.Features.Users.UpdatePreferredCurrency;
 using Goaname.Application.Features.Users.VerifyPayoutAccount;
@@ -25,6 +26,7 @@ internal static class UserEndpoints
 
         group.MapGet("/me", GetCurrentUserAsync);
         group.MapGet("/me/wallet", GetCurrentUserWalletAsync);
+        group.MapGet("/me/bets", GetMyBetsAsync);
         group.MapPost("/me/deposit", DepositFundsAsync);
         group.MapPatch("/me/currency", UpdatePreferredCurrencyAsync);
         group.MapPost("/me/payout-account", LinkPayoutAccountAsync);
@@ -59,6 +61,19 @@ internal static class UserEndpoints
 
         var wallet = await sender.Send(new GetCurrentUserWalletQuery(tenantId, userId)).ConfigureAwait(false);
         return Results.Ok(wallet);
+    }
+
+    private static async Task<IResult> GetMyBetsAsync(
+        HttpContext httpContext,
+        ISender sender,
+        string tenantId,
+        int? limit)
+    {
+        var userId = httpContext.GetUserId();
+        tenantId = httpContext.GetTenantId(tenantId);
+
+        var bets = await sender.Send(new GetMyBetsQuery(tenantId, userId, limit ?? 50)).ConfigureAwait(false);
+        return Results.Ok(bets);
     }
 
     private static async Task<IResult> DepositFundsAsync(

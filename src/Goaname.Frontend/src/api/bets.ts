@@ -1,5 +1,5 @@
-import { getAccessToken, TENANT_ID } from './auth';
-import { parseJsonResponse, readErrorMessage } from './client';
+import { TENANT_ID } from './auth';
+import { apiFetch } from './http';
 import type { OddsSnapshot } from './markets';
 
 export { TENANT_ID };
@@ -20,22 +20,6 @@ export interface PlaceBetResponse {
   currency: string;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAccessToken();
-  const headers = new Headers(init?.headers);
-  headers.set('Content-Type', 'application/json');
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  const response = await fetch(path, { ...init, headers });
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-
-  return parseJsonResponse<T>(response);
-}
-
 export async function placeBet(
   marketId: string,
   request: PlaceBetBodyRequest,
@@ -49,4 +33,23 @@ export async function placeBet(
 
 export function betSideToOutcome(side: 'yes' | 'no'): BetOutcome {
   return side === 'yes' ? 'Yes' : 'No';
+}
+
+export type BetStatus = 'Pending' | 'Won' | 'Lost' | 'Cancelled' | 'Refunded';
+
+export interface BetHistoryItem {
+  betSlipId: string;
+  marketId: string;
+  marketTitle: string;
+  category: string;
+  outcome: BetOutcome;
+  amount: number;
+  sharesReceived: number;
+  oddsAtPlacement: number;
+  status: BetStatus;
+  placedAt: string;
+}
+
+export async function listMyBets(limit = 50): Promise<BetHistoryItem[]> {
+  return apiFetch<BetHistoryItem[]>(`/api/tenants/${TENANT_ID}/users/me/bets?limit=${limit}`);
 }

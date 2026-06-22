@@ -1,5 +1,6 @@
 using Goaname.Application;
 using Goaname.Domain.Exceptions;
+using Goaname.Infrastructure;
 using Goaname.Presentation.Endpoints;
 using Goaname.Presentation.Extensions;
 using System.Text.Json.Serialization;
@@ -27,9 +28,12 @@ internal static class Program
         {
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
+        builder.Services.AddInfrastructureServices(builder.Configuration);
         builder.AddGoanameOrleans();
 
         var app = builder.Build();
+
+        await app.Services.MigrateDatabaseAsync().ConfigureAwait(false);
 
         app.UseExceptionHandler(exceptionHandlerApp =>
         {
@@ -87,6 +91,7 @@ internal static class Program
         app.MapTenantEndpoints();
         app.MapMarketEndpoints();
         app.MapBetEndpoints();
+        app.MapActivityEndpoints();
         app.MapUserEndpoints();
         app.MapAuthEndpoints();
         app.MapGoanameOrleansDashboard();

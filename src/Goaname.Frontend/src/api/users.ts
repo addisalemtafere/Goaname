@@ -1,5 +1,5 @@
-import { getAccessToken, setAccessToken, TENANT_ID } from './auth';
-import { parseJsonResponse, readErrorMessage } from './client';
+import { setAccessToken, TENANT_ID } from './auth';
+import { apiFetch } from './http';
 
 export { TENANT_ID };
 export type KycStatus = 'NotStarted' | 'Pending' | 'Verified';
@@ -40,22 +40,6 @@ export interface DevTokenResponse {
   userId: string;
   tenantId: string;
   expiresAt: string;
-}
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAccessToken();
-  const headers = new Headers(init?.headers);
-  headers.set('Content-Type', 'application/json');
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  const response = await fetch(path, { ...init, headers });
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-
-  return parseJsonResponse<T>(response);
 }
 
 export async function issueDevToken(displayName = 'Demo User'): Promise<DevTokenResponse> {

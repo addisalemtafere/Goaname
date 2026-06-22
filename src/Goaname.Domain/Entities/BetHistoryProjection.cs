@@ -18,6 +18,10 @@ public class BetHistoryProjection
     public decimal Amount { get; set; }
     public Outcome SelectedOutcome { get; set; }
     public decimal PotentialPayout { get; set; }
+    public decimal OddsAtPlacement { get; set; }
+
+    public string MarketTitle { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
 
     public BetStatus Status { get; set; }
     public decimal? SettlementAmount { get; set; }

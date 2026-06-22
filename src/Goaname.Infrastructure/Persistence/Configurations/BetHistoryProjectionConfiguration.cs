@@ -15,6 +15,8 @@ public class BetHistoryProjectionConfiguration : IEntityTypeConfiguration<BetHis
         builder.HasKey(b => b.Id);
 
         builder.Property(b => b.TenantId).IsRequired().HasMaxLength(50);
+        builder.Property(b => b.MarketTitle).IsRequired().HasMaxLength(500);
+        builder.Property(b => b.Category).IsRequired().HasMaxLength(100);
         builder.Property(b => b.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(b => b.SelectedOutcome).HasConversion<string>().HasMaxLength(10);
 

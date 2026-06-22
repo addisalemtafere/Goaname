@@ -56,12 +56,14 @@ function App() {
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState<string | null>(null);
   const [marketsRefreshKey, setMarketsRefreshKey] = useState(0);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const refreshMarkets = () => setMarketsRefreshKey((current) => current + 1);
+  const refreshActivity = () => setActivityRefreshKey((current) => current + 1);
   const filteredMarkets = filterMarkets(markets, searchQuery, selectedCategory);
   const wasAuthenticated = useRef(isAuthenticated);
   const showTicker = (page: PublicPage) => page !== 'activity';
@@ -158,6 +160,7 @@ function App() {
     );
     void refresh();
     refreshMarkets();
+    refreshActivity();
   }
 
   const browseContent = (
@@ -224,7 +227,15 @@ function App() {
       case 'leaderboard':
         return <LeaderboardPage />;
       case 'activity':
-        return <ActivityPage />;
+        return (
+          <ActivityPage
+            isAuthenticated={isAuthenticated}
+            refreshKey={activityRefreshKey}
+            currency={user?.preferredCurrency ?? wallet?.currency ?? 'USD'}
+            onSignIn={openSignIn}
+            onBrowseMarkets={() => setPublicPage('markets')}
+          />
+        );
       default:
         return browseContent;
     }
@@ -318,7 +329,7 @@ function App() {
         </main>
 
         <PublicBottomNav activePage={publicPage} onNavigate={setPublicPage} />
-        {showTicker(publicPage) && <ActivityTicker markets={markets} />}
+        {showTicker(publicPage) && <ActivityTicker refreshKey={activityRefreshKey} />}
       </div>
 
       {authModal}
