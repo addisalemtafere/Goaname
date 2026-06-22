@@ -1,4 +1,5 @@
-import { FormEvent, useState } from 'react';
+import { type FormEvent, useState } from 'react';
+import { btnPrimary, inputClass, labelClass } from './ui/classes';
 
 interface AuthPanelProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -32,61 +33,62 @@ export function AuthPanel({ onLogin, onRegister }: AuthPanelProps) {
   };
 
   return (
-    <div style={{
-      maxWidth: '420px',
-      margin: '0 auto',
-      padding: 'var(--gn-space-8)',
-      backgroundColor: 'var(--gn-color-bg-surface)',
-      borderRadius: 'var(--gn-radius-lg)',
-      border: '1px solid var(--gn-border-color)',
-    }}>
-      <h1 style={{ marginTop: 0, color: 'var(--gn-color-primary)' }}>Goaname</h1>
-      <p style={{ color: 'var(--gn-color-text-secondary)', marginBottom: 'var(--gn-space-6)' }}>
+    <div className="mx-auto max-w-[420px] rounded-xl border border-slate-700 bg-slate-800 p-8">
+      <h1 className="mt-0 text-blue-400">Goaname</h1>
+      <p className="mb-6 text-slate-400">
         {mode === 'login' ? 'Sign in to your account' : 'Create an account to start trading'}
       </p>
 
-      <div style={{ display: 'flex', gap: 'var(--gn-space-2)', marginBottom: 'var(--gn-space-6)' }}>
+      <div className="mb-6 flex gap-2">
         <button
           type="button"
           onClick={() => setMode('login')}
-          style={tabStyle(mode === 'login')}
+          className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 ${
+            mode === 'login'
+              ? 'border-blue-500 bg-blue-500 text-white'
+              : 'border-slate-600 bg-transparent text-slate-100'
+          }`}
         >
           Login
         </button>
         <button
           type="button"
           onClick={() => setMode('register')}
-          style={tabStyle(mode === 'register')}
+          className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 ${
+            mode === 'register'
+              ? 'border-blue-500 bg-blue-500 text-white'
+              : 'border-slate-600 bg-transparent text-slate-100'
+          }`}
         >
           Register
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 'var(--gn-space-4)' }}>
+      <form onSubmit={handleSubmit} className="grid gap-4">
         {mode === 'register' && (
-          <label style={labelStyle}>
+          <label className={labelClass}>
             Display name
             <input
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
               required
-              style={inputStyle}
+              className={inputClass}
             />
           </label>
         )}
 
-        <label style={labelStyle}>
+        <label className={labelClass}>
           Email
           <input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            style={inputStyle}
+            className={inputClass}
           />
         </label>
 
-        <label style={labelStyle}>
+        <label className={labelClass}>
           Password
           <input
             type="password"
@@ -94,57 +96,16 @@ export function AuthPanel({ onLogin, onRegister }: AuthPanelProps) {
             onChange={(event) => setPassword(event.target.value)}
             required
             minLength={8}
-            style={inputStyle}
+            className={inputClass}
           />
         </label>
 
-        {error && (
-          <div style={{ color: 'var(--gn-color-danger)', fontSize: 'var(--gn-font-size-sm)' }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="text-sm text-red-400">{error}</div>}
 
-        <button type="submit" disabled={submitting} style={submitStyle}>
+        <button type="submit" disabled={submitting} className={`${btnPrimary} bg-emerald-500 hover:bg-emerald-600`}>
           {submitting ? 'Please wait...' : mode === 'login' ? 'Login' : 'Register'}
         </button>
       </form>
     </div>
   );
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: 'var(--gn-space-2)',
-  color: 'var(--gn-color-text-secondary)',
-  fontSize: 'var(--gn-font-size-sm)',
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: 'var(--gn-space-3)',
-  borderRadius: 'var(--gn-radius-md)',
-  border: '1px solid var(--gn-border-color)',
-  backgroundColor: 'var(--gn-color-bg-base)',
-  color: 'var(--gn-color-text-primary)',
-};
-
-const submitStyle: React.CSSProperties = {
-  padding: 'var(--gn-space-3)',
-  borderRadius: 'var(--gn-radius-md)',
-  border: 'none',
-  backgroundColor: 'var(--gn-color-success)',
-  color: '#fff',
-  fontWeight: 'var(--gn-font-weight-bold)',
-  cursor: 'pointer',
-};
-
-function tabStyle(active: boolean): React.CSSProperties {
-  return {
-    flex: 1,
-    padding: 'var(--gn-space-2) var(--gn-space-3)',
-    borderRadius: 'var(--gn-radius-md)',
-    border: '1px solid var(--gn-border-color)',
-    backgroundColor: active ? 'var(--gn-color-primary)' : 'transparent',
-    color: active ? '#fff' : 'var(--gn-color-text-primary)',
-    cursor: 'pointer',
-  };
 }

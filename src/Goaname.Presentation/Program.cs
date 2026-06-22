@@ -49,6 +49,15 @@ internal static class Program
                     return;
                 }
 
+                if (exception is NotFoundException notFoundException)
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    await Results.Problem(notFoundException.Message, statusCode: StatusCodes.Status404NotFound)
+                        .ExecuteAsync(context)
+                        .ConfigureAwait(false);
+                    return;
+                }
+
                 if (exception is UnauthorizedAccessException unauthorizedException)
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -71,6 +80,7 @@ internal static class Program
 
         app.MapGet("/", () => "Goaname API is running");
         app.MapTenantEndpoints();
+        app.MapMarketEndpoints();
         app.MapUserEndpoints();
         app.MapAuthEndpoints();
         app.MapGoanameOrleansDashboard();
