@@ -14,10 +14,10 @@ interface PageHeaderProps {
 export function PageHeader({ title, subtitle, badge, action, size = 'default', className }: PageHeaderProps) {
   const titleClass =
     size === 'hero'
-      ? 'text-4xl font-extrabold tracking-tight'
+      ? 'text-2xl font-extrabold tracking-tight sm:text-4xl'
       : size === 'compact'
-        ? 'text-xl font-black'
-        : 'text-2xl font-extrabold tracking-tight';
+        ? 'text-lg font-black sm:text-xl'
+        : 'text-xl font-extrabold tracking-tight sm:text-2xl';
 
   return (
     <div className={cn('flex flex-wrap items-start justify-between gap-4', className)}>

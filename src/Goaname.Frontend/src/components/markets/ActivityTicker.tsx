@@ -14,7 +14,7 @@ export function ActivityTicker({ markets }: ActivityTickerProps) {
   const doubled = [...items, ...items];
 
   return (
-    <div className="fixed right-0 bottom-0 left-0 z-20 overflow-hidden border-t border-vantage-border bg-vantage-bg/95 py-2.5 backdrop-blur-md">
+    <div className="fixed right-0 bottom-0 left-0 z-20 hidden overflow-hidden border-t border-vantage-border bg-vantage-bg/95 py-2.5 backdrop-blur-md md:block">
       <div className="vantage-marquee-track flex w-max gap-10 whitespace-nowrap px-6">
         {doubled.map((item, index) => (
           <TickerItem key={`${item.key}-${index}`} item={item} />

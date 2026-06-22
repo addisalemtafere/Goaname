@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAccessToken, login, logout, register } from '../api/auth';
-import { getCurrentUser, getWallet, type UserProfile, type Wallet } from '../api/users';
+import { getCurrentUser, getWallet, updateCurrency, type UserProfile, type Wallet } from '../api/users';
 
 interface AuthState {
   user: UserProfile | null;
@@ -25,7 +25,11 @@ export function useAuth() {
 
     setState((current) => ({ ...current, loading: true, error: null }));
     try {
-      const [user, wallet] = await Promise.all([getCurrentUser(), getWallet()]);
+      let user = await getCurrentUser();
+      if (user.preferredCurrency.toUpperCase() === 'KES') {
+        user = await updateCurrency('USD');
+      }
+      const wallet = await getWallet();
       setState({ user, wallet, loading: false, error: null });
     } catch (error) {
       setState({

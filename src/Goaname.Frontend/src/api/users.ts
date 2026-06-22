@@ -95,10 +95,24 @@ export async function verifyPayoutAccount(): Promise<UserProfile> {
   });
 }
 
+export function normalizeCurrency(currency: string): 'USD' | 'ETB' {
+  const upper = currency.toUpperCase();
+  if (upper === 'ETB') {
+    return 'ETB';
+  }
+  return 'USD';
+}
+
 export function formatMoney(amount: number, currency: string): string {
-  if (currency === 'KES') {
-    return `KES ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const normalized = normalizeCurrency(currency);
+  const formatted = amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  if (normalized === 'ETB') {
+    return `ETB ${formatted}`;
   }
 
-  return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `$${formatted}`;
 }

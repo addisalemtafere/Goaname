@@ -1,13 +1,13 @@
 export { AppSidenav } from './AppSidenav';
 export { AppTopbar } from './AppTopbar';
 export { PublicNav } from './PublicNav';
+export { PublicBottomNav } from './PublicBottomNav';
 export {
-  getAppViewMeta,
   getBrowseTitle,
   getLeaderboardTitle,
   getActivityTitle,
   getManageTitle,
   getPublicPageMeta,
-  type AppView,
+  type AppShell,
   type PublicPage,
 } from './viewMeta';

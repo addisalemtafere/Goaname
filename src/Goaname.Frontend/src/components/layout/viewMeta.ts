@@ -1,6 +1,6 @@
 export type PublicPage = 'markets' | 'leaderboard' | 'activity';
 
-export type AppView = 'browse' | 'leaderboard' | 'activity' | 'manage';
+export type AppShell = 'public' | 'admin';
 
 export function getManageTitle() {
   return { title: 'Market administration', subtitle: 'Create drafts, manage categories, and publish markets' };
@@ -35,18 +35,5 @@ export function getPublicPageMeta(page: PublicPage) {
       return getActivityTitle();
     default:
       return getBrowseTitle(true);
-  }
-}
-
-export function getAppViewMeta(view: AppView, isPublic: boolean) {
-  switch (view) {
-    case 'manage':
-      return getManageTitle();
-    case 'leaderboard':
-      return getLeaderboardTitle();
-    case 'activity':
-      return getActivityTitle();
-    default:
-      return getBrowseTitle(isPublic);
   }
 }

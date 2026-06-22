@@ -7,10 +7,11 @@ import { AuthPanel } from '../components/auth';
 import {
   AppSidenav,
   AppTopbar,
-  getAppViewMeta,
+  getManageTitle,
   getPublicPageMeta,
+  PublicBottomNav,
   PublicNav,
-  type AppView,
+  type AppShell,
   type PublicPage,
 } from '../components/layout';
 import { LeaderboardPage } from '../components/leaderboard';
@@ -24,12 +25,14 @@ import {
 } from '../components/markets';
 import {
   Alert,
-  containerClass,
+  appContainerClass,
   EmptyState,
   LoadingOverlay,
   Modal,
   pageBgClass,
   PageHeader,
+  publicContainerClass,
+  publicMobileBottomPadClass,
 } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 
@@ -43,7 +46,7 @@ async function ensureDemoTenant() {
 
 function App() {
   const { user, wallet, loading: authLoading, error, isAuthenticated, signIn, signUp, signOut } = useAuth();
-  const [activeView, setActiveView] = useState<AppView>('browse');
+  const [shell, setShell] = useState<AppShell>('public');
   const [publicPage, setPublicPage] = useState<PublicPage>('markets');
   const [showAuthPanel, setShowAuthPanel] = useState(false);
   const [markets, setMarkets] = useState<MarketDto[]>([]);
@@ -53,11 +56,12 @@ function App() {
   const [categories, setCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const refreshMarkets = () => setMarketsRefreshKey((current) => current + 1);
   const filteredMarkets = filterMarkets(markets, searchQuery, selectedCategory);
   const wasAuthenticated = useRef(isAuthenticated);
-  const showTicker = (view: AppView | PublicPage) => view !== 'manage';
+  const showTicker = (page: PublicPage) => page !== 'activity';
 
   useEffect(() => {
     void ensureDemoTenant();
@@ -98,14 +102,14 @@ function App() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setActiveView('browse');
+      setShell('public');
       wasAuthenticated.current = false;
       return;
     }
 
     setShowAuthPanel(false);
     if (!wasAuthenticated.current) {
-      setActiveView('manage');
+      setShell('admin');
     }
     wasAuthenticated.current = true;
   }, [isAuthenticated]);
@@ -114,10 +118,25 @@ function App() {
     setShowAuthPanel(true);
   }
 
+  function openManage() {
+    if (!isAuthenticated) {
+      openSignIn();
+      return;
+    }
+    setShell('admin');
+  }
+
   function handleLogout() {
     signOut();
-    setActiveView('browse');
+    setShell('public');
     setPublicPage('markets');
+    setMobileNavOpen(false);
+  }
+
+  function backToSite(page: PublicPage = 'markets') {
+    setShell('public');
+    setPublicPage(page);
+    setMobileNavOpen(false);
   }
 
   const browseContent = (
@@ -154,7 +173,7 @@ function App() {
           title="No markets yet"
           description={
             isAuthenticated
-              ? 'Use Manage markets in the sidenav to create one.'
+              ? 'Open Manage to create and publish markets.'
               : 'Sign in to create and publish markets.'
           }
         />
@@ -177,19 +196,6 @@ function App() {
     </>
   );
 
-  function renderAppContent(view: AppView) {
-    switch (view) {
-      case 'manage':
-        return <MarketAdminPanel onMarketsChanged={refreshMarkets} />;
-      case 'leaderboard':
-        return <LeaderboardPage />;
-      case 'activity':
-        return <ActivityPage />;
-      default:
-        return browseContent;
-    }
-  }
-
   function renderPublicContent(page: PublicPage) {
     switch (page) {
       case 'leaderboard':
@@ -201,31 +207,46 @@ function App() {
     }
   }
 
-  if (isAuthenticated && user) {
-    const viewMeta = getAppViewMeta(activeView, false);
+  const authModal = showAuthPanel && (
+    <Modal open={showAuthPanel} onClose={() => setShowAuthPanel(false)}>
+      <AuthPanel
+        onClose={() => setShowAuthPanel(false)}
+        onLogin={async (email, password) => {
+          await signIn(email, password);
+        }}
+        onRegister={async (displayName, email, password) => {
+          await signUp(displayName, email, password);
+        }}
+      />
+    </Modal>
+  );
+
+  if (isAuthenticated && user && shell === 'admin') {
+    const manageMeta = getManageTitle();
 
     return (
       <>
         <div className={`flex min-h-screen ${pageBgClass}`}>
           <AppSidenav
-            activeView={activeView}
-            onNavigate={setActiveView}
             user={user}
             wallet={wallet}
+            onBackToSite={() => backToSite('markets')}
             onLogout={handleLogout}
             tenantId={TENANT_ID}
+            mobileOpen={mobileNavOpen}
+            onMobileClose={() => setMobileNavOpen(false)}
           />
 
           <div className="flex min-h-screen min-w-0 flex-1 flex-col">
             <AppTopbar
-              title={viewMeta.title}
-              subtitle={viewMeta.subtitle}
-              badge={activeView === 'manage' ? 'Admin' : undefined}
+              title={manageMeta.title}
+              subtitle={manageMeta.subtitle}
+              badge="Admin"
+              onMenuClick={() => setMobileNavOpen(true)}
             />
-            <div className={`${containerClass} flex-1 ${showTicker(activeView) ? 'pb-14' : ''}`}>
-              {renderAppContent(activeView)}
+            <div className={`${appContainerClass} flex-1`}>
+              <MarketAdminPanel onMarketsChanged={refreshMarkets} />
             </div>
-            {showTicker(activeView) && <ActivityTicker markets={markets} />}
           </div>
         </div>
         {authLoading && <LoadingOverlay message="Loading account..." />}
@@ -237,41 +258,38 @@ function App() {
 
   return (
     <>
-      <div className={`min-h-screen ${showTicker(publicPage) ? 'pb-14' : ''} ${pageBgClass}`}>
+      <div className={`min-h-screen ${publicMobileBottomPadClass} ${pageBgClass}`}>
         <PublicNav
           activePage={publicPage}
           onNavigate={setPublicPage}
           liveCount={markets.length}
           onSignIn={openSignIn}
+          user={user}
+          wallet={wallet}
+          onManage={isAuthenticated ? openManage : undefined}
+          onLogout={isAuthenticated ? handleLogout : undefined}
         />
 
-        <main className={containerClass}>
+        <main className={publicContainerClass}>
           <PageHeader
             title={publicMeta.title}
             subtitle={publicMeta.subtitle}
             size="hero"
-            className="mb-8"
+            className="mb-6 sm:mb-8"
           />
 
           {renderPublicContent(publicPage)}
         </main>
 
+        <PublicBottomNav activePage={publicPage} onNavigate={setPublicPage} />
         {showTicker(publicPage) && <ActivityTicker markets={markets} />}
       </div>
 
-      <Modal open={showAuthPanel} onClose={() => setShowAuthPanel(false)}>
-        <AuthPanel
-          onClose={() => setShowAuthPanel(false)}
-          onLogin={async (email, password) => {
-            await signIn(email, password);
-          }}
-          onRegister={async (displayName, email, password) => {
-            await signUp(displayName, email, password);
-          }}
-        />
-      </Modal>
+      {authModal}
 
-      {authLoading && <LoadingOverlay message="Loading account..." />}
+      {authLoading && isAuthenticated && (
+        <LoadingOverlay message="Loading account..." />
+      )}
     </>
   );
 }

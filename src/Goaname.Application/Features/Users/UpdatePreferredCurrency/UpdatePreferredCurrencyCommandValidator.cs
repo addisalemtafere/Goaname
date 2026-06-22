@@ -4,7 +4,7 @@ namespace Goaname.Application.Features.Users.UpdatePreferredCurrency;
 
 public sealed class UpdatePreferredCurrencyCommandValidator : AbstractValidator<UpdatePreferredCurrencyCommand>
 {
-    private static readonly string[] AllowedCurrencies = ["USD", "KES"];
+    private static readonly string[] AllowedCurrencies = ["USD", "ETB"];
 
     public UpdatePreferredCurrencyCommandValidator()
     {
@@ -13,6 +13,6 @@ public sealed class UpdatePreferredCurrencyCommandValidator : AbstractValidator<
         RuleFor(x => x.Currency)
             .NotEmpty()
             .Must(currency => AllowedCurrencies.Contains(currency.ToUpperInvariant()))
-            .WithMessage("Currency must be USD or KES.");
+            .WithMessage("Currency must be USD or ETB.");
     }
 }
