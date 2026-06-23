@@ -13,4 +13,13 @@ public interface ITenantGrain : IGrainWithStringKey
 
     [Alias("UpdateBettingEnabledAsync")]
     public Task UpdateBettingEnabledAsync(bool enabled);
+
+    [Alias("GetCategoriesAsync")]
+    public Task<IReadOnlyList<string>> GetCategoriesAsync();
+
+    [Alias("AddCategoryAsync")]
+    public Task AddCategoryAsync(string category);
+
+    [Alias("RemoveCategoryAsync")]
+    public Task RemoveCategoryAsync(string category);
 }

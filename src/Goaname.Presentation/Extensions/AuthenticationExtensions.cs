@@ -24,10 +24,11 @@ internal static class AuthenticationExtensions
             {
                 options.RequireHttpsMetadata = jwtSection.GetValue("RequireHttpsMetadata", !environment.IsDevelopment());
 
-                if (jwtSection.GetValue("UseDevelopmentKey", false) && environment.IsDevelopment())
+                if (jwtSection.GetValue("AllowLocalAccounts", false) ||
+                    (jwtSection.GetValue("UseDevelopmentKey", false) && environment.IsDevelopment()))
                 {
                     var signingKey = jwtSection["SigningKey"]
-                        ?? throw new InvalidOperationException("Authentication:JwtBearer:SigningKey is required for development JWT.");
+                        ?? throw new InvalidOperationException("Authentication:JwtBearer:SigningKey is required for local accounts.");
 
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
@@ -48,6 +49,8 @@ internal static class AuthenticationExtensions
             });
 
         services.AddAuthorizationBuilder()
+            .AddPolicy(GoanamePolicies.AuthenticatedUser, policy =>
+                policy.RequireAuthenticatedUser())
             .AddPolicy(GoanamePolicies.OrleansDashboard, policy =>
                 policy.RequireAuthenticatedUser()
                     .RequireRole("Admin"));

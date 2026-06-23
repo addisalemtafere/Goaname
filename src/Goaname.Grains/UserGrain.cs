@@ -1,0 +1,164 @@
+using Goaname.Domain.Enums;
+using Goaname.Domain.Exceptions;
+using Goaname.Domain.Rules;
+using Goaname.Domain.State;
+using Goaname.Grains.Interfaces;
+using Orleans.Runtime;
+
+namespace Goaname.Grains;
+
+public class UserGrain : Grain, IUserGrain
+{
+    private readonly IPersistentState<UserState> _state;
+
+    public UserGrain(
+        [PersistentState(stateName: "user", storageName: "GoanameStore")]
+        IPersistentState<UserState> state)
+    {
+        _state = state;
+    }
+
+    public Task<UserState> GetStateAsync() => Task.FromResult(_state.State);
+
+    public async Task InitializeAsync(Guid userId, string tenantId, string displayName, string email, string currency)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        ArgumentException.ThrowIfNullOrWhiteSpace(currency);
+
+        if (_state.State.UserId != Guid.Empty)
+        {
+            _state.State.LastActiveAt = DateTimeOffset.UtcNow;
+            await _state.WriteStateAsync().ConfigureAwait(true);
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        _state.State.UserId = userId;
+        _state.State.TenantId = tenantId;
+        _state.State.DisplayName = displayName;
+        _state.State.Email = email;
+        _state.State.PreferredCurrency = currency;
+        _state.State.CreatedAt = now;
+        _state.State.LastActiveAt = now;
+        _state.State.Wallet = new WalletState
+        {
+            UserId = userId,
+            TenantId = tenantId,
+            Currency = currency,
+            Status = WalletStatus.Active,
+            CreatedAt = now,
+            LastUpdated = now,
+        };
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
+    public async Task UpdatePreferredCurrencyAsync(string currency)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(currency);
+        EnsureInitialized();
+
+        _state.State.PreferredCurrency = currency.ToUpperInvariant();
+        _state.State.Wallet.Currency = _state.State.PreferredCurrency;
+        _state.State.LastActiveAt = DateTimeOffset.UtcNow;
+        _state.State.Wallet.LastUpdated = _state.State.LastActiveAt;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
+    public async Task LinkPayoutAccountAsync(string provider, string accountId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(accountId);
+
+        PayoutAccountRules.Validate(provider, accountId);
+        EnsureInitialized();
+
+        _state.State.PayoutProvider = PayoutAccountRules.NormalizeProvider(provider);
+        _state.State.PayoutAccountId = accountId.Trim();
+        _state.State.KycStatus = KycStatus.Pending;
+        _state.State.PayoutAccountVerifiedAt = null;
+        _state.State.LastActiveAt = DateTimeOffset.UtcNow;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
+    public async Task VerifyPayoutAccountAsync()
+    {
+        EnsureInitialized();
+
+        if (string.IsNullOrWhiteSpace(_state.State.PayoutAccountId))
+        {
+            throw new BusinessRuleException("Link a payout account before verification.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        _state.State.KycStatus = KycStatus.Verified;
+        _state.State.PayoutAccountVerifiedAt = now;
+        _state.State.LastActiveAt = now;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
+    public async Task<WalletState> DepositAsync(decimal amount)
+    {
+        if (amount <= 0)
+        {
+            throw new BusinessRuleException("Deposit amount must be greater than zero.");
+        }
+
+        EnsureWalletActive();
+
+        var now = DateTimeOffset.UtcNow;
+        _state.State.Wallet.Balance += amount;
+        _state.State.Wallet.TotalDeposited += amount;
+        _state.State.Wallet.LastUpdated = now;
+        _state.State.LastActiveAt = now;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+        return _state.State.Wallet;
+    }
+
+    public async Task<WalletState> DebitAsync(decimal amount)
+    {
+        if (amount <= 0)
+        {
+            throw new BusinessRuleException("Debit amount must be greater than zero.");
+        }
+
+        EnsureWalletActive();
+
+        if (_state.State.Wallet.Balance < amount)
+        {
+            throw new BusinessRuleException("Insufficient wallet balance.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        _state.State.Wallet.Balance -= amount;
+        _state.State.Wallet.LastUpdated = now;
+        _state.State.LastActiveAt = now;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+        return _state.State.Wallet;
+    }
+
+    private void EnsureInitialized()
+    {
+        if (_state.State.UserId == Guid.Empty)
+        {
+            throw new BusinessRuleException("User has not been initialized.");
+        }
+    }
+
+    private void EnsureWalletActive()
+    {
+        EnsureInitialized();
+
+        if (_state.State.Wallet.Status != WalletStatus.Active)
+        {
+            throw new BusinessRuleException("Wallet is not active.");
+        }
+    }
+}

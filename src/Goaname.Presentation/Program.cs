@@ -13,7 +13,15 @@ internal static class Program
 
         builder.AddGoanameConfiguration();
         builder.Services.AddApplicationServices();
+        builder.Services.AddGoanameAuth();
         builder.Services.AddGoanameAuthentication(builder.Configuration, builder.Environment);
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("Frontend", policy =>
+                policy.WithOrigins("http://localhost:5173")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod());
+        });
         builder.AddGoanameOrleans();
 
         var app = builder.Build();
@@ -32,6 +40,33 @@ internal static class Program
                     return;
                 }
 
+                if (exception is BusinessRuleException businessRuleException)
+                {
+                    context.Response.StatusCode = StatusCodes.Status409Conflict;
+                    await Results.Problem(businessRuleException.Message, statusCode: StatusCodes.Status409Conflict)
+                        .ExecuteAsync(context)
+                        .ConfigureAwait(false);
+                    return;
+                }
+
+                if (exception is NotFoundException notFoundException)
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    await Results.Problem(notFoundException.Message, statusCode: StatusCodes.Status404NotFound)
+                        .ExecuteAsync(context)
+                        .ConfigureAwait(false);
+                    return;
+                }
+
+                if (exception is UnauthorizedAccessException unauthorizedException)
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    await Results.Problem(unauthorizedException.Message, statusCode: StatusCodes.Status401Unauthorized)
+                        .ExecuteAsync(context)
+                        .ConfigureAwait(false);
+                    return;
+                }
+
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 await Results.Problem("An unexpected error occurred.")
                     .ExecuteAsync(context)
@@ -39,11 +74,15 @@ internal static class Program
             });
         });
 
+        app.UseCors("Frontend");
         app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapGet("/", () => "Goaname API is running");
         app.MapTenantEndpoints();
+        app.MapMarketEndpoints();
+        app.MapUserEndpoints();
+        app.MapAuthEndpoints();
         app.MapGoanameOrleansDashboard();
 
         await app.RunAsync().ConfigureAwait(false);
