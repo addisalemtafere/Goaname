@@ -1,6 +1,7 @@
 using Goaname.Application.Common.Abstractions;
 using Goaname.Domain.Entities;
 using Goaname.Domain.Enums;
+using Goaname.Domain.Rules;
 using Goaname.Infrastructure.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,6 +65,25 @@ public sealed class BetHistoryRepository(GoanameDbContext dbContext) : IBetHisto
             .ConfigureAwait(false);
 
         return new BetHistoryStats(volume24h, betsToday);
+    }
+
+    public async Task<IReadOnlyList<TraderBetSnapshot>> ListLeaderboardBetsAsync(
+        string tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await dbContext.BetHistory
+            .AsNoTracking()
+            .Where(b => b.TenantId == tenantId)
+            .Select(b => new TraderBetSnapshot(
+                b.UserId,
+                b.Amount,
+                b.Status,
+                b.SettlementAmount,
+                b.PlacedAt))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows;
     }
 
     public async Task<IReadOnlyList<BetHistoryEntry>> ListByMarketAsync(

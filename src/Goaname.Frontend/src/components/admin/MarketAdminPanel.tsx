@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   addCategory,
+  categoriesMatch,
   formatCategoryLabel,
   listCategories,
   removeCategory,
+  sortCategories,
 } from '../../api/categories';
 import {
   closeMarket,
@@ -24,21 +26,39 @@ import {
   type Outcome,
 } from '../../api/markets';
 import { useMarketDetails } from '../../hooks/useMarketDetails';
+import { AdminDetailPanel, AdminEmptyAside } from './AdminPage';
 import { MarketDetailsPanel } from './MarketDetailsPanel';
+import { adminListBtn } from './adminButtons';
 import {
   Alert,
   Badge,
   Button,
-  Card,
+  Chip,
   EmptyState,
   Field,
   Input,
-  PageHeader,
   PanelSection,
   Select,
   Tag,
   cn,
 } from '../ui';
+
+type MarketFilter = 'all' | 'active' | 'settled' | 'draft';
+
+function matchesMarketFilter(market: MarketDto, filter: MarketFilter): boolean {
+  const status = normalizeMarketStatus(market.status);
+
+  switch (filter) {
+    case 'active':
+      return status === 'Open' || status === 'Closing';
+    case 'settled':
+      return status === 'Settled' || status === 'Resolved' || status === 'Cancelled';
+    case 'draft':
+      return status === 'Draft';
+    default:
+      return true;
+  }
+}
 
 interface CreateFormState {
   title: string;
@@ -55,10 +75,11 @@ const emptyFormState = (): CreateFormState => ({
 });
 
 interface MarketAdminPanelProps {
+  tenantId: string;
   onMarketsChanged?: () => void;
 }
 
-export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
+export function MarketAdminPanel({ tenantId, onMarketsChanged }: MarketAdminPanelProps) {
   const [markets, setMarkets] = useState<MarketDto[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,14 +94,56 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [settlingId, setSettlingId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
-  const marketDetails = useMarketDetails(selectedMarketId);
+  const [marketFilter, setMarketFilter] = useState<MarketFilter>('all');
+  const [marketSearch, setMarketSearch] = useState('');
+  const [showTools, setShowTools] = useState(false);
+  const marketDetails = useMarketDetails(selectedMarketId, tenantId);
+
+  const sortedCategories = useMemo(() => sortCategories(categories), [categories]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const category of sortedCategories) {
+      counts.set(category, 0);
+    }
+
+    for (const market of markets) {
+      counts.set(market.category, (counts.get(market.category) ?? 0) + 1);
+    }
+
+    return counts;
+  }, [markets, sortedCategories]);
+
+  const filteredMarkets = useMemo(() => {
+    const query = marketSearch.trim().toLowerCase();
+
+    return markets.filter((market) => {
+      if (selectedCategory && !categoriesMatch(market.category, selectedCategory)) {
+        return false;
+      }
+
+      if (!matchesMarketFilter(market, marketFilter)) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return market.title.toLowerCase().includes(query)
+        || market.id.toLowerCase().includes(query);
+    });
+  }, [markets, selectedCategory, marketFilter, marketSearch]);
+
+  const selectedMarket = markets.find((market) => market.id === selectedMarketId) ?? null;
 
   const loadCategories = useCallback(async () => {
     setCategoriesLoading(true);
 
     try {
-      const items = await listCategories();
+      const items = await listCategories(tenantId);
       setCategories(items);
       setForm((current) => ({
         ...current,
@@ -93,21 +156,21 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     } finally {
       setCategoriesLoading(false);
     }
-  }, []);
+  }, [tenantId]);
 
   const loadMarkets = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const items = await listAdminMarkets();
+      const items = await listAdminMarkets(tenantId);
       setMarkets(items);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load admin markets');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     void loadCategories();
@@ -116,6 +179,33 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
   useEffect(() => {
     void loadMarkets();
   }, [loadMarkets]);
+
+  useEffect(() => {
+    if (sortedCategories.length === 0) {
+      setSelectedCategory(null);
+      return;
+    }
+
+    if (!selectedCategory || !sortedCategories.includes(selectedCategory)) {
+      setSelectedCategory(sortedCategories[0]);
+    }
+  }, [sortedCategories, selectedCategory]);
+
+  useEffect(() => {
+    if (!selectedMarketId) {
+      return;
+    }
+
+    const stillVisible = filteredMarkets.some((market) => market.id === selectedMarketId);
+    if (!stillVisible) {
+      setSelectedMarketId(null);
+    }
+  }, [filteredMarkets, selectedMarketId]);
+
+  function handleSelectCategory(category: string) {
+    setSelectedCategory(category);
+    setSelectedMarketId(null);
+  }
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -141,12 +231,13 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
         category: form.category,
         tradingEndsAt,
         liquidityParameter: liquidity,
-      });
+      }, tenantId);
 
       setForm({
         ...emptyFormState(),
         category: form.category,
       });
+      setSelectedCategory(form.category);
       await loadMarkets();
       onMarketsChanged?.();
     } catch (err: unknown) {
@@ -167,9 +258,10 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     setError(null);
 
     try {
-      await addCategory(name);
+      await addCategory(name, tenantId);
       setNewCategoryName('');
       await loadCategories();
+      setSelectedCategory(name);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to add category');
     } finally {
@@ -182,12 +274,16 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     setError(null);
 
     try {
-      await removeCategory(category);
+      await removeCategory(category, tenantId);
       await loadCategories();
       setForm((current) => ({
         ...current,
         category: current.category === category ? '' : current.category,
       }));
+      if (selectedCategory === category) {
+        setSelectedCategory(null);
+        setSelectedMarketId(null);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to remove category');
     } finally {
@@ -200,7 +296,7 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     setError(null);
 
     try {
-      await publishMarket(marketId);
+      await publishMarket(marketId, tenantId);
       await loadMarkets();
       onMarketsChanged?.();
     } catch (err: unknown) {
@@ -215,7 +311,7 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     setError(null);
 
     try {
-      await closeMarket(marketId);
+      await closeMarket(marketId, tenantId);
       await loadMarkets();
       await marketDetails.refresh();
       onMarketsChanged?.();
@@ -231,7 +327,7 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     setError(null);
 
     try {
-      await resolveMarket(marketId, winningOutcome);
+      await resolveMarket(marketId, winningOutcome, tenantId);
       await loadMarkets();
       await marketDetails.refresh();
       onMarketsChanged?.();
@@ -247,7 +343,7 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     setError(null);
 
     try {
-      await settleMarket(marketId);
+      await settleMarket(marketId, tenantId);
       await loadMarkets();
       await marketDetails.refresh();
       onMarketsChanged?.();
@@ -258,238 +354,339 @@ export function MarketAdminPanel({ onMarketsChanged }: MarketAdminPanelProps) {
     }
   }
 
-
   return (
-    <Card className="mb-8 grid gap-6 rounded-xl p-6 shadow-sm">
-      <PageHeader
-        title="Manage Markets"
-        subtitle="Create drafts, publish, close trading, resolve outcomes, and pay winners."
-        size="compact"
-        action={
-          <Button variant="secondary" onClick={() => void loadMarkets()}>
+    <div className="admin-markets-workspace grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Chip label="All" active={marketFilter === 'all'} onClick={() => setMarketFilter('all')} />
+          <Chip label="Active" active={marketFilter === 'active'} onClick={() => setMarketFilter('active')} />
+          <Chip label="Settled" active={marketFilter === 'settled'} onClick={() => setMarketFilter('settled')} />
+          <Chip label="Draft" active={marketFilter === 'draft'} onClick={() => setMarketFilter('draft')} />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowTools((value) => !value)}>
+            {showTools ? 'Hide tools' : 'Create & categories'}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void loadMarkets()}>
             Refresh
           </Button>
-        }
-      />
+        </div>
+      </div>
 
       {error && <Alert>{error}</Alert>}
 
-      <PanelSection
-        title="Manage categories"
-        description="Categories available when creating markets. At least one category must remain."
-      >
-        {categoriesLoading && (
-          <p className="m-0 text-sm text-vantage-muted">Loading categories...</p>
-        )}
+      {showTools && (
+        <div className="admin-panel grid gap-4 rounded-lg border border-vantage-border bg-vantage-surface p-4 lg:grid-cols-2">
+          <PanelSection title="Categories" flat>
+            {categoriesLoading ? (
+              <p className="m-0 text-xs text-vantage-muted">Loading categories...</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {sortedCategories.map((category) => (
+                  <Tag
+                    key={category}
+                    removeLabel={`Remove ${category}`}
+                    removeDisabled={sortedCategories.length <= 1 || removingCategory === category}
+                    onRemove={() => void handleRemoveCategory(category)}
+                  >
+                    {formatCategoryLabel(category)}
+                  </Tag>
+                ))}
+              </div>
+            )}
+            <form onSubmit={(event) => void handleAddCategory(event)} className="mt-3 flex flex-wrap items-end gap-2">
+              <Field label="New category" className="min-w-[180px] flex-1">
+                <Input
+                  value={newCategoryName}
+                  onChange={(event) => setNewCategoryName(event.target.value)}
+                  placeholder="e.g. world-cup"
+                  maxLength={100}
+                  className="h-8 text-xs"
+                />
+              </Field>
+              <Button type="submit" size="sm" disabled={addingCategory || !newCategoryName.trim()}>
+                Add
+              </Button>
+            </form>
+          </PanelSection>
 
-        {!categoriesLoading && categories.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <Tag
-                key={category}
-                removeLabel={`Remove ${category}`}
-                removeDisabled={categories.length <= 1 || removingCategory === category}
-                onRemove={() => void handleRemoveCategory(category)}
-              >
-                {formatCategoryLabel(category)}
-              </Tag>
-            ))}
-          </div>
-        )}
-
-        <form
-          onSubmit={(event) => void handleAddCategory(event)}
-          className="flex flex-wrap items-end gap-3"
-        >
-          <Field label="New category" className="min-w-[220px] flex-1">
-            <Input
-              value={newCategoryName}
-              onChange={(event) => setNewCategoryName(event.target.value)}
-              placeholder="e.g. world-cup"
-              maxLength={100}
-            />
-          </Field>
-          <Button type="submit" disabled={addingCategory || !newCategoryName.trim()}>
-            {addingCategory ? 'Adding...' : 'Add category'}
-          </Button>
-        </form>
-      </PanelSection>
-
-      <PanelSection title="Create market">
-        <form onSubmit={(event) => void handleCreate(event)} className="grid gap-4">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-            <Field label="Title">
-              <Input
-                required
-                minLength={3}
-                maxLength={200}
-                value={form.title}
-                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Will it rain tomorrow?"
-              />
-            </Field>
-
-            <Field label="Category">
-              <Select
-                required
-                value={form.category}
-                disabled={categoriesLoading || categories.length === 0}
-                onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
-              >
-                {categories.length === 0 ? (
-                  <option value="">No categories available</option>
-                ) : (
-                  categories.map((category) => (
-                    <option key={category} value={category}>
-                      {formatCategoryLabel(category)}
-                    </option>
-                  ))
-                )}
-              </Select>
-            </Field>
-
-            <Field label="Trading ends">
-              <Input
-                required
-                type="datetime-local"
-                value={form.tradingEndsAt}
-                onChange={(event) => setForm((current) => ({ ...current, tradingEndsAt: event.target.value }))}
-              />
-            </Field>
-
-            <Field label="Liquidity (optional)">
-              <Input
-                type="number"
-                min="1"
-                step="1"
-                value={form.liquidityParameter}
-                onChange={(event) => setForm((current) => ({ ...current, liquidityParameter: event.target.value }))}
-                placeholder="Uses tenant default"
-              />
-            </Field>
-          </div>
-
-          <Button type="submit" disabled={creating || categories.length === 0} className="w-fit">
-            {creating ? 'Creating...' : 'Create draft'}
-          </Button>
-        </form>
-      </PanelSection>
-
-      <div className="grid gap-4">
-        <h3 className="m-0 text-lg font-bold text-vantage-fg">All markets</h3>
-
-        {loading && (
-          <p className="m-0 text-sm text-vantage-muted">Loading markets...</p>
-        )}
-
-        {!loading && markets.length === 0 && (
-          <EmptyState
-            title="No markets yet"
-            description="Create a draft above."
-            className="rounded-xl py-8"
-          />
-        )}
-
-        {!loading && markets.length > 0 && (
-          <div className="grid gap-3">
-            {markets.map((market) => (
-              <Card
-                key={market.id}
-                as="article"
-                variant="elevated"
-                className={cn(
-                  'rounded-lg',
-                  selectedMarketId === market.id && 'border-vantage-accent',
-                )}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-4 p-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <strong className="text-vantage-fg">{market.title}</strong>
-                      <StatusBadge
-                        status={market.status}
-                        visible={market.isVisible}
-                        winningOutcome={market.winningOutcome}
-                      />
-                    </div>
-                    <p className="mt-2 break-all text-sm text-vantage-muted">
-                      {market.category} · ends {new Date(market.tradingEndsAt).toLocaleString()} · {market.id}
-                    </p>
-                    <p className="mt-2 text-sm text-vantage-muted">
-                      {toCardPercent(market.yesProbability)}% Yes · {market.yesMultiplier.toFixed(2)}x /
-                      {' '}{toCardPercent(market.noProbability)}% No · {market.noMultiplier.toFixed(2)}x
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setSelectedMarketId(selectedMarketId === market.id ? null : market.id)}
-                    >
-                      {selectedMarketId === market.id ? 'Hide details' : 'Details'}
-                    </Button>
-                    {isDraftMarket(market) && (
-                      <Button
-                        disabled={publishingId === market.id}
-                        onClick={() => void handlePublish(market.id)}
-                      >
-                        {publishingId === market.id ? 'Publishing...' : 'Publish'}
-                      </Button>
+          <PanelSection title="Create market" flat>
+            <form onSubmit={(event) => void handleCreate(event)} className="grid gap-3">
+              <Field label="Title">
+                <Input
+                  required
+                  minLength={3}
+                  maxLength={200}
+                  value={form.title}
+                  onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                  placeholder="Will it rain tomorrow?"
+                  className="h-8 text-xs"
+                />
+              </Field>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Category">
+                  <Select
+                    required
+                    value={form.category}
+                    disabled={categoriesLoading || sortedCategories.length === 0}
+                    onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
+                    className="h-8 text-xs"
+                  >
+                    {sortedCategories.length === 0 ? (
+                      <option value="">No categories</option>
+                    ) : (
+                      sortedCategories.map((category) => (
+                        <option key={category} value={category}>
+                          {formatCategoryLabel(category)}
+                        </option>
+                      ))
                     )}
-                    {isOpenMarket(market) && (
-                      <Button
-                        variant="secondary"
-                        disabled={closingId === market.id}
-                        onClick={() => void handleClose(market.id)}
+                  </Select>
+                </Field>
+                <Field label="Trading ends">
+                  <Input
+                    required
+                    type="datetime-local"
+                    value={form.tradingEndsAt}
+                    onChange={(event) => setForm((current) => ({ ...current, tradingEndsAt: event.target.value }))}
+                    className="h-8 text-xs"
+                  />
+                </Field>
+              </div>
+              <Button type="submit" size="sm" disabled={creating || sortedCategories.length === 0} className="w-fit">
+                {creating ? 'Creating...' : 'Create draft'}
+              </Button>
+            </form>
+          </PanelSection>
+        </div>
+      )}
+
+      <div className="admin-panel overflow-hidden rounded-lg border border-vantage-border bg-vantage-surface">
+        <div className="admin-markets-grid">
+          <aside className="admin-markets-pane border-b border-vantage-border bg-vantage-bg/30 lg:border-r lg:border-b-0">
+            <div className="border-b border-vantage-border px-3 py-2.5">
+              <p className="m-0 text-[11px] font-semibold tracking-[0.08em] text-vantage-muted uppercase">
+                Categories
+              </p>
+            </div>
+            <div className="admin-markets-scroll p-2">
+              {categoriesLoading && (
+                <p className="m-0 px-2 py-3 text-xs text-vantage-muted">Loading...</p>
+              )}
+              {!categoriesLoading && sortedCategories.length === 0 && (
+                <p className="m-0 px-2 py-3 text-xs text-vantage-muted">No categories yet.</p>
+              )}
+              <ul className="m-0 list-none space-y-0.5 p-0">
+                {sortedCategories.map((category) => {
+                  const active = selectedCategory === category;
+                  const count = categoryCounts.get(category) ?? 0;
+
+                  return (
+                    <li key={category}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectCategory(category)}
+                        className={adminListBtn(
+                          active,
+                          'flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm',
+                        )}
                       >
-                        {closingId === market.id ? 'Closing...' : 'Close trading'}
-                      </Button>
-                    )}
-                    {isClosingMarket(market) && (
-                      <>
-                        <Button
-                          disabled={resolvingId === market.id}
-                          onClick={() => void handleResolve(market.id, 'Yes')}
+                        <span className="truncate font-medium">{formatCategoryLabel(category)}</span>
+                        <span className="shrink-0 rounded bg-vantage-bg/80 px-1.5 py-0.5 tabular-nums text-[11px] text-vantage-muted">
+                          {count}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </aside>
+
+          <section className="admin-markets-pane min-w-0 border-b border-vantage-border lg:border-r lg:border-b-0">
+            <div className="flex items-center justify-between gap-3 border-b border-vantage-border px-4 py-2.5">
+              <p className="m-0 truncate text-sm font-semibold text-vantage-fg">
+                {selectedCategory ? formatCategoryLabel(selectedCategory) : 'Markets'}
+              </p>
+              <Input
+                value={marketSearch}
+                onChange={(event) => setMarketSearch(event.target.value)}
+                placeholder="Find market..."
+                className="h-8 max-w-[220px] text-sm"
+              />
+            </div>
+
+            <div className="admin-markets-scroll">
+              {loading && (
+                <p className="m-0 px-4 py-8 text-xs text-vantage-muted">Loading markets...</p>
+              )}
+
+              {!loading && filteredMarkets.length === 0 && (
+                <EmptyState
+                  title="No markets found"
+                  description={
+                    selectedCategory
+                      ? `No markets in ${formatCategoryLabel(selectedCategory)} for this filter.`
+                      : 'Select a category or create a draft.'
+                  }
+                  className="py-12"
+                />
+              )}
+
+              {!loading && filteredMarkets.length > 0 && (
+                <ul className="m-0 list-none divide-y divide-vantage-border/70 p-0">
+                  {filteredMarkets.map((market) => {
+                    const active = selectedMarketId === market.id;
+
+                    return (
+                      <li key={market.id}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMarketId(market.id)}
+                          className={cn(
+                            'block w-full cursor-pointer border-none px-4 py-3.5 text-left transition-colors',
+                            active
+                              ? 'bg-[var(--admin-nav-active-bg)]'
+                              : 'bg-transparent hover:bg-[var(--color-vantage-hover)]',
+                          )}
                         >
-                          {resolvingId === market.id ? 'Resolving...' : 'Resolve Yes'}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          disabled={resolvingId === market.id}
-                          onClick={() => void handleResolve(market.id, 'No')}
-                        >
-                          Resolve No
-                        </Button>
-                      </>
-                    )}
-                    {isResolvedMarket(market) && (
-                      <Button
-                        disabled={settlingId === market.id}
-                        onClick={() => void handleSettle(market.id)}
-                      >
-                        {settlingId === market.id ? 'Settling...' : 'Settle & pay winners'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className={cn(
+                              'm-0 line-clamp-2 text-sm font-semibold leading-snug',
+                              active ? 'text-[var(--admin-nav-active-fg)]' : 'text-vantage-fg',
+                            )}
+                            >
+                              {market.title}
+                            </p>
+                            <StatusBadge
+                              status={market.status}
+                              visible={market.isVisible}
+                              winningOutcome={market.winningOutcome}
+                            />
+                          </div>
+                          <p className="m-0 mt-1.5 text-xs text-vantage-muted">
+                            {toCardPercent(market.yesProbability)}% Yes · {market.yesMultiplier.toFixed(2)}x
+                            {' · '}
+                            ends {new Date(market.tradingEndsAt).toLocaleDateString()}
+                          </p>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </section>
 
-                {selectedMarketId === market.id && (
-                  <div className="px-4 pb-4">
-                    <MarketDetailsPanel
-                      market={market}
-                      odds={marketDetails.odds}
-                      bets={marketDetails.bets}
-                      loading={marketDetails.loading}
-                      error={marketDetails.error}
-                    />
-                  </div>
-                )}
-              </Card>
-            ))}
-          </div>
-        )}
+          <aside className="admin-markets-pane min-w-0 bg-vantage-bg/20">
+            {selectedMarket ? (
+              <AdminDetailPanel
+                title={selectedMarket.title}
+                subtitle={formatCategoryLabel(selectedMarket.category)}
+                footer={
+                  <MarketAdminActions
+                    market={selectedMarket}
+                    publishingId={publishingId}
+                    closingId={closingId}
+                    resolvingId={resolvingId}
+                    settlingId={settlingId}
+                    onPublish={handlePublish}
+                    onClose={handleClose}
+                    onResolve={handleResolve}
+                    onSettle={handleSettle}
+                  />
+                }
+              >
+                <MarketDetailsPanel
+                  market={selectedMarket}
+                  odds={marketDetails.odds}
+                  bets={marketDetails.bets}
+                  loading={marketDetails.loading}
+                  error={marketDetails.error}
+                  embedded
+                />
+              </AdminDetailPanel>
+            ) : (
+              <AdminEmptyAside message="Select a category, then click a market to view details and actions." />
+            )}
+          </aside>
+        </div>
       </div>
-    </Card>
+    </div>
+  );
+}
+
+function MarketAdminActions({
+  market,
+  publishingId,
+  closingId,
+  resolvingId,
+  settlingId,
+  onPublish,
+  onClose,
+  onResolve,
+  onSettle,
+}: {
+  market: MarketDto;
+  publishingId: string | null;
+  closingId: string | null;
+  resolvingId: string | null;
+  settlingId: string | null;
+  onPublish: (id: string) => void;
+  onClose: (id: string) => void;
+  onResolve: (id: string, outcome: Outcome) => void;
+  onSettle: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {isDraftMarket(market) && (
+        <Button
+          size="sm"
+          disabled={publishingId === market.id}
+          onClick={() => onPublish(market.id)}
+        >
+          {publishingId === market.id ? 'Publishing...' : 'Publish'}
+        </Button>
+      )}
+      {isOpenMarket(market) && (
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={closingId === market.id}
+          onClick={() => onClose(market.id)}
+        >
+          {closingId === market.id ? 'Closing...' : 'Close trading'}
+        </Button>
+      )}
+      {isClosingMarket(market) && (
+        <>
+          <Button
+            size="sm"
+            disabled={resolvingId === market.id}
+            onClick={() => onResolve(market.id, 'Yes')}
+          >
+            {resolvingId === market.id ? 'Resolving...' : 'Resolve Yes'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={resolvingId === market.id}
+            onClick={() => onResolve(market.id, 'No')}
+          >
+            Resolve No
+          </Button>
+        </>
+      )}
+      {isResolvedMarket(market) && (
+        <Button
+          size="sm"
+          disabled={settlingId === market.id}
+          onClick={() => onSettle(market.id)}
+        >
+          {settlingId === market.id ? 'Settling...' : 'Settle'}
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -512,7 +709,7 @@ function StatusBadge({
     <Badge variant={isDraft ? 'draft' : isSettled ? 'draft' : 'accent'}>
       {label}
       {visible && isLive ? ' · Live' : ''}
-      {isSettled && winningOutcome ? ` · ${winningOutcome} won` : ''}
+      {isSettled && winningOutcome ? ` · ${winningOutcome}` : ''}
     </Badge>
   );
 }

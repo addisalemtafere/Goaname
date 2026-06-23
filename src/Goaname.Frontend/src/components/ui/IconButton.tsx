@@ -14,7 +14,7 @@ export function IconButton({ label, size = 'md', className, children, ...props }
       type="button"
       aria-label={label}
       className={cn(
-        'flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-vantage-border bg-vantage-elevated leading-none text-vantage-muted hover:text-vantage-fg disabled:cursor-not-allowed disabled:opacity-50',
+        'flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-vantage-border bg-[var(--color-vantage-control)] leading-none text-vantage-muted hover:bg-[var(--color-vantage-control-hover)] hover:text-vantage-fg disabled:cursor-not-allowed disabled:opacity-50',
         sizeClass,
         className,
       )}

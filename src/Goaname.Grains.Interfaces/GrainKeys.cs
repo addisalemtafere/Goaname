@@ -16,6 +16,9 @@ public static class GrainKeys
 
     public static string BetSlip(string tenantId, Guid betSlipId) => $"{tenantId}_betslip_{betSlipId}";
     public static string MarketCatalog(string tenantId) => $"{tenantId}_marketcatalog";
+    public static string UserCatalog(string tenantId) => $"{tenantId}_usercatalog";
+    public const string PlatformTenantCatalog = "platform_tenantcatalog";
+    public const string PlatformRoleRegistry = "platform_rolegistry";
 
     public static Guid ParseBetSlipId(string betSlipGrainKey)
     {

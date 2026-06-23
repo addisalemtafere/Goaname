@@ -1,6 +1,7 @@
 import { formatCategoryLabel } from '../../api/categories';
 import { formatVolume, type ActivityFeedItem } from '../../api/activity';
 import { useActivityData } from '../../hooks/useActivityData';
+import { cn } from '../ui';
 
 interface ActivityTickerProps {
   refreshKey?: number;
@@ -17,7 +18,7 @@ export function ActivityTicker({ refreshKey = 0 }: ActivityTickerProps) {
   const doubled = [...tickerItems, ...tickerItems];
 
   return (
-    <div className="fixed right-0 bottom-0 left-0 z-20 hidden overflow-hidden border-t border-vantage-border bg-vantage-bg/95 py-2.5 backdrop-blur-md md:block">
+    <div className="game-ticker relative fixed right-0 bottom-0 left-0 z-20 hidden overflow-hidden border-t py-2.5 backdrop-blur-md md:block">
       <div className="vantage-marquee-track flex w-max gap-10 whitespace-nowrap px-6">
         {doubled.map((item, index) => (
           <TickerItem key={`${item.key}-${index}`} item={item} />
@@ -28,13 +29,15 @@ export function ActivityTicker({ refreshKey = 0 }: ActivityTickerProps) {
 }
 
 function TickerItem({ item }: { item: TickerItemData }) {
+  const isNo = item.action.toLowerCase().includes('no');
+
   return (
     <span className="inline-flex items-center gap-1.5 text-xs">
       <span className="font-mono text-vantage-muted">{item.wallet}</span>
       <span className="text-vantage-muted">{item.action}</span>
       <span className="font-bold text-vantage-yes">{item.amount}</span>
       <span className="text-vantage-muted">on</span>
-      <span className="font-medium text-vantage-no">{item.event}</span>
+      <span className={cn('font-medium', isNo ? 'text-vantage-no' : 'text-vantage-accent')}>{item.event}</span>
     </span>
   );
 }

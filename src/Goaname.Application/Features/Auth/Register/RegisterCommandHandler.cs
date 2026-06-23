@@ -1,8 +1,8 @@
 using Goaname.Application.Auth;
 using Goaname.Application.Features.Tenants.GetTenant;
-using Goaname.Application.Features.Tenants.InitializeTenant;
 using Goaname.Contracts.Auth;
 using Goaname.Domain.Auth;
+using Goaname.Domain.Exceptions;
 using Goaname.Grains.Interfaces;
 using MediatR;
 
@@ -11,19 +11,17 @@ namespace Goaname.Application.Features.Auth.Register;
 public sealed class RegisterCommandHandler(
     IGrainFactory grainFactory,
     ISender sender,
-    IJwtTokenIssuer tokenIssuer)
-    : IRequestHandler<RegisterCommand, AuthResponse>
+    IUserRoleResolver roleResolver)
+    : IRequestHandler<RegisterCommand, RegisteredUserResponse>
 {
-    public async Task<AuthResponse> Handle(RegisterCommand request, CancellationToken cancellationToken)
+    public async Task<RegisteredUserResponse> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var tenant = await sender.Send(new GetTenantQuery(request.TenantId), cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(tenant.TenantId))
         {
-            tenant = await sender.Send(
-                new InitializeTenantCommand(request.TenantId, "Demo Markets", "USD"),
-                cancellationToken).ConfigureAwait(false);
+            throw new BusinessRuleException("Tenant is not initialized. A platform administrator must create the tenant first.");
         }
 
         var userId = Guid.NewGuid();
@@ -44,18 +42,17 @@ public sealed class RegisterCommandHandler(
             email,
             tenant.Currency).ConfigureAwait(false);
 
-        var token = tokenIssuer.IssueToken(userId, request.TenantId, request.DisplayName, email);
-        return ToAuthResponse(token);
-    }
+        var userCatalog = grainFactory.GetGrain<IUserCatalogGrain>(GrainKeys.UserCatalog(request.TenantId));
+        await userCatalog.RegisterAsync(userId).ConfigureAwait(false);
 
-    internal static AuthResponse ToAuthResponse(AuthTokenResult token) =>
-        new()
+        var roles = roleResolver.Resolve(request.TenantId, email);
+        return new RegisteredUserResponse
         {
-            AccessToken = token.AccessToken,
-            UserId = token.UserId,
-            TenantId = token.TenantId,
-            DisplayName = token.DisplayName,
-            Email = token.Email,
-            ExpiresAt = token.ExpiresAt,
+            UserId = userId,
+            TenantId = request.TenantId,
+            DisplayName = request.DisplayName,
+            Email = email,
+            Roles = roles,
         };
+    }
 }

@@ -119,7 +119,6 @@ public static class MarketAccessRules
         ArgumentNullException.ThrowIfNull(market);
 
         return market.IsVisible
-            && market.Status is MarketStatus.Open or MarketStatus.Closing
-                or MarketStatus.Resolved or MarketStatus.Settled;
+            && market.Status is MarketStatus.Open or MarketStatus.Closing;
     }
 }

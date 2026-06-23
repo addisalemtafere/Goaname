@@ -214,6 +214,42 @@ public class UserGrain : Grain, IUserGrain
         return _state.State.Wallet;
     }
 
+    public async Task<WalletState> AdminAdjustWalletAsync(decimal signedAmount)
+    {
+        if (signedAmount == 0)
+        {
+            throw new BusinessRuleException("Adjustment amount cannot be zero.");
+        }
+
+        EnsureWalletActive();
+
+        if (signedAmount > 0)
+        {
+            return await DepositAsync(signedAmount).ConfigureAwait(true);
+        }
+
+        return await DebitAsync(Math.Abs(signedAmount)).ConfigureAwait(true);
+    }
+
+    public async Task AdminSetKycStatusAsync(KycStatus status)
+    {
+        EnsureInitialized();
+
+        _state.State.KycStatus = status;
+        _state.State.LastActiveAt = DateTimeOffset.UtcNow;
+
+        if (status == KycStatus.Verified)
+        {
+            _state.State.PayoutAccountVerifiedAt = _state.State.LastActiveAt;
+        }
+        else if (status is KycStatus.NotStarted or KycStatus.Pending)
+        {
+            _state.State.PayoutAccountVerifiedAt = null;
+        }
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
     private void ApplyDebit(decimal amount)
     {
         var now = DateTimeOffset.UtcNow;

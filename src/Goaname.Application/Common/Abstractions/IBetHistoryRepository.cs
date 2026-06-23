@@ -1,4 +1,5 @@
 using Goaname.Domain.Enums;
+using Goaname.Domain.Rules;
 
 namespace Goaname.Application.Common.Abstractions;
 
@@ -49,6 +50,10 @@ public interface IBetHistoryRepository
         CancellationToken cancellationToken = default);
 
     public Task<BetHistoryStats> GetTenantStatsAsync(
+        string tenantId,
+        CancellationToken cancellationToken = default);
+
+    public Task<IReadOnlyList<TraderBetSnapshot>> ListLeaderboardBetsAsync(
         string tenantId,
         CancellationToken cancellationToken = default);
 

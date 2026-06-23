@@ -126,6 +126,7 @@ public class MarketGrain : Grain, IMarketGrain
         _state.State.ResolutionAt = utcNow;
         _state.State.YesBettingEnabled = false;
         _state.State.NoBettingEnabled = false;
+        _state.State.IsVisible = false;
         await _state.WriteStateAsync().ConfigureAwait(true);
     }
 
@@ -146,6 +147,7 @@ public class MarketGrain : Grain, IMarketGrain
 
         _state.State.Status = MarketStatus.Settled;
         _state.State.SettledAt = DateTimeOffset.UtcNow;
+        _state.State.IsVisible = false;
         await _state.WriteStateAsync().ConfigureAwait(true);
     }
 

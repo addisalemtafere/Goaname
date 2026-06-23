@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Goaname.Application.Auth;
 using Goaname.Application.Features.Users.DepositFunds;
 using Goaname.Application.Features.Users.GetCurrentUser;
 using Goaname.Application.Features.Users.GetCurrentUserWallet;
@@ -38,6 +39,8 @@ internal static class UserEndpoints
     private static async Task<IResult> GetCurrentUserAsync(
         HttpContext httpContext,
         ISender sender,
+        IUserRoleResolver roleResolver,
+        IPermissionChecker permissionChecker,
         string tenantId)
     {
         var userId = httpContext.GetUserId();
@@ -48,7 +51,17 @@ internal static class UserEndpoints
 
         var profile = await sender.Send(
             new GetCurrentUserQuery(tenantId, userId, displayName, email)).ConfigureAwait(false);
-        return Results.Ok(profile);
+
+        var resolvedEmail = email ?? profile.Email;
+        var roles = string.IsNullOrWhiteSpace(resolvedEmail)
+            ? httpContext.User.GetRoles()
+            : roleResolver.Resolve(tenantId, resolvedEmail);
+
+        var permissions = string.IsNullOrWhiteSpace(resolvedEmail)
+            ? []
+            : permissionChecker.GetPermissions(tenantId, resolvedEmail);
+
+        return Results.Ok(profile with { Roles = roles, Permissions = permissions });
     }
 
     private static async Task<IResult> GetCurrentUserWalletAsync(

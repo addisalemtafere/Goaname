@@ -21,16 +21,16 @@ const emptyState = (): MarketDetailsState => ({
   error: null,
 });
 
-async function fetchMarketDetails(marketId: string): Promise<Pick<MarketDetailsState, 'odds' | 'bets'>> {
+async function fetchMarketDetails(tenantId: string, marketId: string): Promise<Pick<MarketDetailsState, 'odds' | 'bets'>> {
   const [odds, bets] = await Promise.all([
-    getMarketOdds(TENANT_ID, marketId),
-    getMarketBets(marketId, TENANT_ID),
+    getMarketOdds(tenantId, marketId),
+    getMarketBets(marketId, tenantId),
   ]);
 
   return { odds, bets };
 }
 
-export function useMarketDetails(marketId: string | null) {
+export function useMarketDetails(marketId: string | null, tenantId: string = TENANT_ID) {
   const [state, setState] = useState<MarketDetailsState>(emptyState);
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export function useMarketDetails(marketId: string | null) {
     let cancelled = false;
     setState((current) => ({ ...current, loading: true, error: null }));
 
-    void fetchMarketDetails(marketId)
+    void fetchMarketDetails(tenantId, marketId)
       .then(({ odds, bets }) => {
         if (!cancelled) {
           setState({ odds, bets, loading: false, error: null });
@@ -62,7 +62,7 @@ export function useMarketDetails(marketId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [marketId]);
+  }, [marketId, tenantId]);
 
   const refresh = useCallback(async () => {
     if (!marketId) {
@@ -72,7 +72,7 @@ export function useMarketDetails(marketId: string | null) {
     setState((current) => ({ ...current, loading: true, error: null }));
 
     try {
-      const { odds, bets } = await fetchMarketDetails(marketId);
+      const { odds, bets } = await fetchMarketDetails(tenantId, marketId);
       setState({ odds, bets, loading: false, error: null });
     } catch (err: unknown) {
       setState({
@@ -82,7 +82,7 @@ export function useMarketDetails(marketId: string | null) {
         error: err instanceof Error ? err.message : 'Failed to load market details',
       });
     }
-  }, [marketId]);
+  }, [marketId, tenantId]);
 
   return { ...state, refresh };
 }

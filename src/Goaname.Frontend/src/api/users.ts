@@ -1,4 +1,4 @@
-import { setAccessToken, TENANT_ID } from './auth';
+import { setAccessToken, setPermissions, setRoles, TENANT_ID } from './auth';
 import { apiFetch } from './http';
 
 export { TENANT_ID };
@@ -21,6 +21,8 @@ export interface UserProfile {
   payoutAccountVerifiedAt?: string | null;
   withdrawalsEnabled: boolean;
   lastActiveAt: string;
+  roles?: string[];
+  permissions?: string[];
 }
 
 export interface Wallet {
@@ -52,7 +54,16 @@ export async function issueDevToken(displayName = 'Demo User'): Promise<DevToken
 }
 
 export async function getCurrentUser(): Promise<UserProfile> {
-  return apiFetch<UserProfile>(`/api/tenants/${TENANT_ID}/users/me`);
+  const profile = await apiFetch<UserProfile>(`/api/tenants/${TENANT_ID}/users/me`);
+  if (profile.roles?.length) {
+    setRoles(profile.roles);
+  }
+
+  if (profile.permissions?.length) {
+    setPermissions(profile.permissions);
+  }
+
+  return profile;
 }
 
 export async function getWallet(): Promise<Wallet> {
@@ -95,15 +106,25 @@ export function normalizeCurrency(currency: string): 'USD' | 'ETB' {
 }
 
 export function formatMoney(amount: number, currency: string): string {
+  return formatPreciseMoney(amount, currency);
+}
+
+export function formatPreciseMoney(amount: number, currency: string): string {
   const normalized = normalizeCurrency(currency);
-  const formatted = amount.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
 
   if (normalized === 'ETB') {
+    const formatted = safeAmount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     return `ETB ${formatted}`;
   }
 
-  return `$${formatted}`;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(safeAmount);
 }

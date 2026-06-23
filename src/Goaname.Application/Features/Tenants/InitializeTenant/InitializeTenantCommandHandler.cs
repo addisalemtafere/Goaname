@@ -15,6 +15,9 @@ public sealed class InitializeTenantCommandHandler(IGrainFactory grainFactory, I
         var tenantGrain = grainFactory.GetGrain<ITenantGrain>(GrainKeys.Tenant(request.TenantId));
         await tenantGrain.InitializeAsync(request.Name, request.Currency).ConfigureAwait(false);
 
+        var catalog = grainFactory.GetGrain<ITenantCatalogGrain>(GrainKeys.PlatformTenantCatalog);
+        await catalog.RegisterAsync(request.TenantId).ConfigureAwait(false);
+
         return await sender.Send(new GetTenantQuery(request.TenantId), cancellationToken).ConfigureAwait(false);
     }
 }

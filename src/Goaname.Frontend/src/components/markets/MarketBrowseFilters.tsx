@@ -33,7 +33,7 @@ export function MarketBrowseFilters({
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search markets..."
-          className="py-3.5 pr-4 pl-11 sm:py-4 sm:pr-28"
+          className="game-search py-3.5 pr-4 pl-11 sm:py-4 sm:pr-28"
         />
         {resultCount !== undefined && (
           <span className="pointer-events-none absolute top-1/2 right-4 hidden -translate-y-1/2 text-xs font-bold tracking-wider text-vantage-muted uppercase sm:inline">

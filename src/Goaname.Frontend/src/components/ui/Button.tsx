@@ -5,21 +5,33 @@ export type ButtonVariant = 'primary' | 'secondary' | 'connect' | 'buyYes' | 'bu
 
 const variantClass: Record<ButtonVariant, string> = {
   primary:
-    'cursor-pointer rounded-xl bg-vantage-accent px-4 py-2.5 text-sm font-bold text-white hover:bg-vantage-accent-dim disabled:cursor-not-allowed disabled:opacity-50',
+    'cursor-pointer rounded-md bg-vantage-accent font-semibold text-white hover:bg-vantage-accent-dim disabled:cursor-not-allowed disabled:opacity-50',
   secondary:
-    'cursor-pointer rounded-xl border border-vantage-border bg-vantage-elevated px-4 py-2.5 text-sm font-semibold text-vantage-fg hover:border-vantage-muted disabled:cursor-not-allowed disabled:opacity-50',
+    'cursor-pointer rounded-md border border-vantage-border bg-[var(--color-vantage-control)] font-medium text-vantage-fg hover:border-vantage-muted hover:bg-[var(--color-vantage-control-hover)] disabled:cursor-not-allowed disabled:opacity-50',
   connect:
     'cursor-pointer rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50',
   buyYes:
-    'w-full cursor-pointer rounded-xl bg-vantage-yes-dim py-3 text-sm font-bold text-vantage-yes transition hover:bg-vantage-yes hover:text-black disabled:cursor-not-allowed disabled:opacity-50',
+    'game-btn-yes w-full cursor-pointer rounded-xl py-3 text-sm font-bold text-vantage-yes transition disabled:cursor-not-allowed disabled:opacity-50',
   buyNo:
-    'w-full cursor-pointer rounded-xl bg-vantage-no-dim py-3 text-sm font-bold text-vantage-no transition hover:bg-vantage-no hover:text-white disabled:cursor-not-allowed disabled:opacity-50',
+    'game-btn-no w-full cursor-pointer rounded-xl py-3 text-sm font-bold text-vantage-no transition disabled:cursor-not-allowed disabled:opacity-50',
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
+  size?: 'default' | 'sm';
 }
 
-export function Button({ variant = 'primary', className, type = 'button', ...props }: ButtonProps) {
-  return <button type={type} className={cn(variantClass[variant], className)} {...props} />;
+const sizeClass = {
+  default: 'px-4 py-2.5 text-sm',
+  sm: 'px-2.5 py-1.5 text-xs',
+};
+
+export function Button({ variant = 'primary', size = 'default', className, type = 'button', ...props }: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cn(variantClass[variant], sizeClass[size], className)}
+      {...props}
+    />
+  );
 }

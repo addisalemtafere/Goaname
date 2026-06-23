@@ -1,4 +1,3 @@
-using Goaname.Application.Auth;
 using Goaname.Application.Common;
 using Goaname.Contracts.Auth;
 
@@ -8,4 +7,4 @@ public sealed record RegisterCommand(
     string TenantId,
     string DisplayName,
     string Email,
-    string Password) : ICommand<AuthResponse>;
+    string Password) : ICommand<RegisteredUserResponse>;

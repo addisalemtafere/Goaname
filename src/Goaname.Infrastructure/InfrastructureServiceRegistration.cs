@@ -22,7 +22,8 @@ public static class InfrastructureServiceRegistration
             ?? throw new InvalidOperationException($"ConnectionStrings:{PostgresConnectionName} is required.");
 
         services.AddDbContext<GoanameDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString)
+                .UseOpenIddict());
 
         services.AddScoped<IBetHistoryRepository, BetHistoryRepository>();
 

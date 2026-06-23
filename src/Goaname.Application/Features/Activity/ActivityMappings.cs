@@ -1,4 +1,5 @@
 using Goaname.Application.Common.Abstractions;
+using Goaname.Application.Common.Mappings;
 using Goaname.Contracts.Activity;
 using Goaname.Domain.Enums;
 
@@ -11,19 +12,13 @@ internal static class ActivityMappings
         {
             Id = entry.BetSlipId,
             PlacedAt = entry.PlacedAt,
-            TraderLabel = FormatTraderLabel(entry.UserId),
+            TraderLabel = UserLabelFormatting.FormatTraderLabel(entry.UserId),
             Kind = entry.SelectedOutcome == Outcome.Yes ? ActivityKinds.BuyYes : ActivityKinds.BuyNo,
             MarketTitle = entry.MarketTitle,
             Category = entry.Category,
             Amount = entry.Amount,
             Shares = entry.PotentialPayout,
         };
-
-    public static string FormatTraderLabel(Guid userId)
-    {
-        var hex = userId.ToString("N");
-        return $"0x{hex[..2]}…{hex[^2..]}";
-    }
 }
 
 internal static class ActivityKinds

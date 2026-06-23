@@ -15,4 +15,6 @@ public sealed record UserProfileDto
     public DateTimeOffset? PayoutAccountVerifiedAt { get; init; }
     public bool WithdrawalsEnabled { get; init; }
     public DateTimeOffset LastActiveAt { get; init; }
+    public IReadOnlyList<string> Roles { get; init; } = [];
+    public IReadOnlyList<string> Permissions { get; init; } = [];
 }

@@ -4,7 +4,7 @@ import { cn } from './cn';
 const fieldClass = 'grid gap-2 text-sm text-vantage-muted';
 
 const controlClass =
-  'w-full rounded-xl border border-vantage-border bg-vantage-elevated px-4 py-3.5 text-vantage-fg outline-none placeholder:text-vantage-muted focus:border-vantage-accent/50 disabled:cursor-not-allowed disabled:opacity-50';
+  'w-full rounded-xl border border-vantage-border bg-[var(--color-vantage-control)] px-4 py-3.5 text-vantage-fg outline-none placeholder:text-vantage-muted focus:border-vantage-accent/50 disabled:cursor-not-allowed disabled:opacity-50';
 
 interface FieldProps {
   label: string;
