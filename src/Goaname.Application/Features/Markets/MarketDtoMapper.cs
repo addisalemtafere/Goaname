@@ -21,6 +21,7 @@ internal static class MarketDtoMapper
             TotalVolume = snapshot.State.TotalVolume,
             UniqueTraders = snapshot.State.UniqueTradersCount,
             IsVisible = snapshot.State.IsVisible,
+            WinningOutcome = snapshot.State.WinningOutcome,
         };
 
     public static OddsSnapshot ToOddsSnapshot(MarketGrainSnapshot snapshot) =>

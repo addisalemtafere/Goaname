@@ -1,5 +1,7 @@
 namespace Goaname.Presentation.Extensions;
 
+using Goaname.Infrastructure;
+using Goaname.Presentation.Admin;
 using Goaname.Presentation.Configuration;
 using Orleans.Dashboard;
 using Orleans.Hosting;
@@ -25,6 +27,9 @@ internal static class OrleansHostExtensions
 
             ConfigureTransactions(siloBuilder, options);
             ConfigureDashboard(siloBuilder, options);
+            siloBuilder.AddStartupTask<RoleRegistryBootstrapper>();
+            siloBuilder.AddStartupTask<DevelopmentDataSeeder>();
+            siloBuilder.AddStartupTask<UserCatalogBackfiller>();
         });
 
         return builder;

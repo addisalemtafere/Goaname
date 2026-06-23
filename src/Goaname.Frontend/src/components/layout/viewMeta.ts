@@ -9,7 +9,9 @@ export function getManageTitle() {
 export function getBrowseTitle(isPublic: boolean) {
   return {
     title: 'Markets',
-    subtitle: isPublic ? 'Public market catalog — sign in to place bets' : 'Browse live prediction markets and place bets',
+    subtitle: isPublic
+      ? 'Pick your side. Live odds. Real stakes.'
+      : 'Browse live prediction markets and place your bets',
   };
 }
 
@@ -27,13 +29,13 @@ export function getActivityTitle() {
   };
 }
 
-export function getPublicPageMeta(page: PublicPage) {
+export function getPublicPageMeta(page: PublicPage, isAuthenticated = false) {
   switch (page) {
     case 'leaderboard':
       return getLeaderboardTitle();
     case 'activity':
       return getActivityTitle();
     default:
-      return getBrowseTitle(true);
+      return getBrowseTitle(!isAuthenticated);
   }
 }

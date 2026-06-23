@@ -1,4 +1,5 @@
 import { parseJsonResponse, readErrorMessage } from './client';
+import { apiFetch } from './http';
 import { TENANT_ID } from './auth';
 
 export { TENANT_ID };
@@ -72,24 +73,15 @@ export async function listCategories(tenantId: string = TENANT_ID): Promise<stri
 }
 
 export async function addCategory(name: string, tenantId: string = TENANT_ID): Promise<void> {
-  const response = await fetch(`/api/tenants/${tenantId}/admin/categories`, {
+  await apiFetch<void>(`/api/tenants/${tenantId}/admin/categories`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
   });
-
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
 }
 
 export async function removeCategory(name: string, tenantId: string = TENANT_ID): Promise<void> {
-  const response = await fetch(
+  await apiFetch<void>(
     `/api/tenants/${tenantId}/admin/categories/${encodeURIComponent(name)}`,
     { method: 'DELETE' },
   );
-
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
 }

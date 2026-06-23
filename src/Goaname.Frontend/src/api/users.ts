@@ -1,5 +1,5 @@
-import { getAccessToken, setAccessToken, TENANT_ID } from './auth';
-import { parseJsonResponse, readErrorMessage } from './client';
+import { setAccessToken, setPermissions, setRoles, TENANT_ID } from './auth';
+import { apiFetch } from './http';
 
 export { TENANT_ID };
 export type KycStatus = 'NotStarted' | 'Pending' | 'Verified';
@@ -21,6 +21,8 @@ export interface UserProfile {
   payoutAccountVerifiedAt?: string | null;
   withdrawalsEnabled: boolean;
   lastActiveAt: string;
+  roles?: string[];
+  permissions?: string[];
 }
 
 export interface Wallet {
@@ -42,22 +44,6 @@ export interface DevTokenResponse {
   expiresAt: string;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAccessToken();
-  const headers = new Headers(init?.headers);
-  headers.set('Content-Type', 'application/json');
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  const response = await fetch(path, { ...init, headers });
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-
-  return parseJsonResponse<T>(response);
-}
-
 export async function issueDevToken(displayName = 'Demo User'): Promise<DevTokenResponse> {
   const result = await apiFetch<DevTokenResponse>('/api/auth/dev-token', {
     method: 'POST',
@@ -68,11 +54,27 @@ export async function issueDevToken(displayName = 'Demo User'): Promise<DevToken
 }
 
 export async function getCurrentUser(): Promise<UserProfile> {
-  return apiFetch<UserProfile>(`/api/tenants/${TENANT_ID}/users/me`);
+  const profile = await apiFetch<UserProfile>(`/api/tenants/${TENANT_ID}/users/me`);
+  if (profile.roles?.length) {
+    setRoles(profile.roles);
+  }
+
+  if (profile.permissions?.length) {
+    setPermissions(profile.permissions);
+  }
+
+  return profile;
 }
 
 export async function getWallet(): Promise<Wallet> {
   return apiFetch<Wallet>(`/api/tenants/${TENANT_ID}/users/me/wallet`);
+}
+
+export async function depositFunds(amount: number): Promise<Wallet> {
+  return apiFetch<Wallet>(`/api/tenants/${TENANT_ID}/users/me/deposit`, {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
 }
 
 export async function updateCurrency(currency: string): Promise<UserProfile> {
@@ -104,15 +106,25 @@ export function normalizeCurrency(currency: string): 'USD' | 'ETB' {
 }
 
 export function formatMoney(amount: number, currency: string): string {
+  return formatPreciseMoney(amount, currency);
+}
+
+export function formatPreciseMoney(amount: number, currency: string): string {
   const normalized = normalizeCurrency(currency);
-  const formatted = amount.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
 
   if (normalized === 'ETB') {
+    const formatted = safeAmount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     return `ETB ${formatted}`;
   }
 
-  return `$${formatted}`;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(safeAmount);
 }

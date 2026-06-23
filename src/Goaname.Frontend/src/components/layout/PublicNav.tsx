@@ -1,6 +1,6 @@
 import type { UserProfile, Wallet } from '../../api/users';
 import { formatMoney, normalizeCurrency } from '../../api/users';
-import { Button, BrandLogo, LiveIndicator, NavTab, stickyHeaderClass } from '../ui';
+import { Button, BrandLogo, LiveIndicator, NavTab, cn, stickyHeaderClass } from '../ui';
 import type { PublicPage } from './viewMeta';
 
 interface PublicNavProps {
@@ -10,7 +10,9 @@ interface PublicNavProps {
   onSignIn: () => void;
   user?: UserProfile | null;
   wallet?: Wallet | null;
-  onManage?: () => void;
+  isPlayer?: boolean;
+  onAddFunds?: () => void;
+  onAdminPanel?: () => void;
   onLogout?: () => void;
 }
 
@@ -27,14 +29,17 @@ export function PublicNav({
   onSignIn,
   user,
   wallet,
-  onManage,
+  isPlayer = false,
+  onAddFunds,
+  onAdminPanel,
   onLogout,
 }: PublicNavProps) {
   const isAuthenticated = Boolean(user);
   const balance = wallet?.balance ?? 0;
+  const currency = normalizeCurrency(user?.preferredCurrency ?? wallet?.currency ?? 'USD');
 
   return (
-    <header className={stickyHeaderClass}>
+    <header className={cn(stickyHeaderClass, 'game-header')}>
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-6 sm:px-6 sm:py-4 lg:px-8">
         <button
           type="button"
@@ -61,25 +66,35 @@ export function PublicNav({
 
           {isAuthenticated && user ? (
             <>
-              <span className="hidden text-sm font-bold text-vantage-yes md:inline">
-                {formatMoney(balance, normalizeCurrency(user.preferredCurrency))}
-              </span>
-              {onManage && (
-                <Button variant="secondary" onClick={onManage} className="hidden px-3 py-2 text-xs sm:inline-flex sm:px-4 sm:text-sm">
-                  Manage
+              {isPlayer && onAddFunds && (
+                <>
+                  <button
+                    type="button"
+                    onClick={onAddFunds}
+                    title="Add funds to your betting wallet"
+                    className="game-wallet-chip rounded-lg border px-2 py-1 text-xs font-bold transition-colors hover:border-vantage-yes/60 sm:text-sm"
+                  >
+                    {formatMoney(balance, currency)}
+                  </button>
+                  <Button variant="primary" onClick={onAddFunds} className="px-3 py-2 text-xs sm:px-4 sm:text-sm">
+                    Add funds
+                  </Button>
+                </>
+              )}
+              {onAdminPanel && (
+                <Button variant="secondary" onClick={onAdminPanel} className="px-3 py-2 text-xs sm:px-4 sm:text-sm">
+                  Admin panel
                 </Button>
               )}
               {onLogout && (
-                <Button variant="connect" onClick={onLogout} className="px-3 py-2 text-xs sm:px-5 sm:py-2.5 sm:text-sm">
-                  <span className="hidden sm:inline">Sign Out</span>
-                  <span className="sm:hidden">Out</span>
+                <Button variant="secondary" onClick={onLogout} className="px-3 py-2 text-xs sm:px-4 sm:py-2.5 sm:text-sm">
+                  Sign out
                 </Button>
               )}
             </>
           ) : (
-            <Button variant="connect" onClick={onSignIn} className="px-3 py-2 text-xs sm:px-5 sm:py-2.5 sm:text-sm">
-              <span className="hidden sm:inline">Connect Wallet</span>
-              <span className="sm:hidden">Sign In</span>
+            <Button variant="connect" onClick={onSignIn} className="game-connect-btn px-3 py-2 text-xs sm:px-5 sm:py-2.5 sm:text-sm">
+              Sign in
             </Button>
           )}
         </div>

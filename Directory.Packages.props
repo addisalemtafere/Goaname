@@ -5,6 +5,7 @@
   <ItemGroup>
     <!-- Orleans -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Orleans.Sdk" Version="10.2.0" />
     <PackageVersion Include="Microsoft.Orleans.Server" Version="10.2.0" />
     <PackageVersion Include="Microsoft.Orleans.Dashboard" Version="10.2.0" />
@@ -17,6 +18,8 @@
     <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageVersion Include="OpenIddict.AspNetCore" Version="7.5.0" />
+    <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="7.5.0" />
     <!-- CQRS -->
     <PackageVersion Include="MediatR" Version="12.5.0" />
     <PackageVersion Include="FluentValidation" Version="11.11.0" />

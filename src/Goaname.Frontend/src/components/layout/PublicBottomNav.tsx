@@ -15,7 +15,7 @@ const ITEMS: { id: PublicPage; label: string; icon: React.ReactNode }[] = [
 export function PublicBottomNav({ activePage, onNavigate }: PublicBottomNavProps) {
   return (
     <nav
-      className="fixed right-0 bottom-0 left-0 z-30 border-t border-vantage-border bg-vantage-bg/95 backdrop-blur-md md:hidden"
+      className="fixed right-0 bottom-0 left-0 z-30 border-t border-vantage-accent/15 bg-vantage-bg/95 backdrop-blur-md md:hidden"
       aria-label="Main navigation"
     >
       <ul className="m-0 grid list-none grid-cols-3 p-0 pb-[env(safe-area-inset-bottom,0px)]">
@@ -31,7 +31,7 @@ export function PublicBottomNav({ activePage, onNavigate }: PublicBottomNavProps
                   active ? 'text-vantage-accent' : 'text-vantage-muted',
                 )}
               >
-                <span className={cn('flex h-8 w-8 items-center justify-center rounded-xl', active && 'bg-vantage-accent/15')}>
+                <span className={cn('flex h-8 w-8 items-center justify-center rounded-xl', active && 'bg-vantage-accent/20 shadow-[0_0_12px_rgba(124,92,255,0.25)]')}>
                   {item.icon}
                 </span>
                 {item.label}

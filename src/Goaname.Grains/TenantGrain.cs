@@ -171,4 +171,78 @@ public class TenantGrain : Grain, ITenantGrain
         // Save the changes to the database
         await _state.WriteStateAsync().ConfigureAwait(true);
     }
+
+    public async Task UpdateSettingsAsync(TenantSettingsPatch patch)
+    {
+        ArgumentNullException.ThrowIfNull(patch);
+        EnsureInitialized();
+
+        if (!string.IsNullOrWhiteSpace(patch.Name))
+        {
+            _state.State.Name = patch.Name.Trim();
+        }
+
+        if (patch.OperationalStatus.HasValue)
+        {
+            _state.State.OperationalStatus = patch.OperationalStatus.Value;
+        }
+
+        if (patch.BettingEnabled.HasValue)
+        {
+            _state.State.BettingEnabled = patch.BettingEnabled.Value;
+        }
+
+        if (patch.DepositsEnabled.HasValue)
+        {
+            _state.State.DepositsEnabled = patch.DepositsEnabled.Value;
+        }
+
+        if (patch.WithdrawalsEnabled.HasValue)
+        {
+            _state.State.WithdrawalsEnabled = patch.WithdrawalsEnabled.Value;
+        }
+
+        if (patch.PlatformFeePercent.HasValue)
+        {
+            if (patch.PlatformFeePercent.Value is < 0 or > 100)
+            {
+                throw new BusinessRuleException("Platform fee must be between 0 and 100 percent.");
+            }
+
+            _state.State.PlatformFeePercent = patch.PlatformFeePercent.Value;
+        }
+
+        if (patch.MaxBetAmount.HasValue)
+        {
+            if (patch.MaxBetAmount.Value <= 0)
+            {
+                throw new BusinessRuleException("Max bet amount must be greater than zero.");
+            }
+
+            _state.State.MaxBetAmount = patch.MaxBetAmount.Value;
+        }
+
+        if (patch.DefaultLiquidityParameter.HasValue)
+        {
+            if (patch.DefaultLiquidityParameter.Value <= 0)
+            {
+                throw new BusinessRuleException("Default liquidity parameter must be greater than zero.");
+            }
+
+            _state.State.DefaultLiquidityParameter = patch.DefaultLiquidityParameter.Value;
+        }
+
+        if (patch.ThemeKey is not null)
+        {
+            _state.State.ThemeKey = string.IsNullOrWhiteSpace(patch.ThemeKey) ? null : patch.ThemeKey.Trim();
+        }
+
+        if (patch.SuspensionReason is not null)
+        {
+            _state.State.SuspensionReason = string.IsNullOrWhiteSpace(patch.SuspensionReason) ? null : patch.SuspensionReason.Trim();
+        }
+
+        _state.State.LastUpdatedAt = DateTimeOffset.UtcNow;
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
 }

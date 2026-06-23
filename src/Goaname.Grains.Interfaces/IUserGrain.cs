@@ -1,3 +1,4 @@
+using Goaname.Domain.Enums;
 using Goaname.Domain.State;
 
 namespace Goaname.Grains.Interfaces;
@@ -25,4 +26,22 @@ public interface IUserGrain : IGrainWithStringKey
 
     [Alias("DebitAsync")]
     public Task<WalletState> DebitAsync(decimal amount);
+
+    /// <summary>
+    /// Debits wallet for a bet slip. Idempotent for the same <paramref name="betSlipId"/>.
+    /// </summary>
+    [Alias("DebitForBetAsync")]
+    public Task<WalletState> DebitForBetAsync(decimal amount, Guid betSlipId);
+
+    /// <summary>
+    /// Credits wallet winnings for a settled bet slip. Idempotent for the same <paramref name="betSlipId"/>.
+    /// </summary>
+    [Alias("CreditWinningsAsync")]
+    public Task<WalletState> CreditWinningsAsync(decimal amount, Guid betSlipId);
+
+    [Alias("AdminAdjustWalletAsync")]
+    public Task<WalletState> AdminAdjustWalletAsync(decimal signedAmount);
+
+    [Alias("AdminSetKycStatusAsync")]
+    public Task AdminSetKycStatusAsync(KycStatus status);
 }

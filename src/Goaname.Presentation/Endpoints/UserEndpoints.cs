@@ -1,6 +1,9 @@
 using System.Security.Claims;
+using Goaname.Application.Auth;
+using Goaname.Application.Features.Users.DepositFunds;
 using Goaname.Application.Features.Users.GetCurrentUser;
 using Goaname.Application.Features.Users.GetCurrentUserWallet;
+using Goaname.Application.Features.Bets.GetMyBets;
 using Goaname.Application.Features.Users.LinkPayoutAccount;
 using Goaname.Application.Features.Users.UpdatePreferredCurrency;
 using Goaname.Application.Features.Users.VerifyPayoutAccount;
@@ -24,6 +27,8 @@ internal static class UserEndpoints
 
         group.MapGet("/me", GetCurrentUserAsync);
         group.MapGet("/me/wallet", GetCurrentUserWalletAsync);
+        group.MapGet("/me/bets", GetMyBetsAsync);
+        group.MapPost("/me/deposit", DepositFundsAsync);
         group.MapPatch("/me/currency", UpdatePreferredCurrencyAsync);
         group.MapPost("/me/payout-account", LinkPayoutAccountAsync);
         group.MapPost("/me/payout-account/verify", VerifyPayoutAccountAsync);
@@ -34,6 +39,8 @@ internal static class UserEndpoints
     private static async Task<IResult> GetCurrentUserAsync(
         HttpContext httpContext,
         ISender sender,
+        IUserRoleResolver roleResolver,
+        IPermissionChecker permissionChecker,
         string tenantId)
     {
         var userId = httpContext.GetUserId();
@@ -44,7 +51,17 @@ internal static class UserEndpoints
 
         var profile = await sender.Send(
             new GetCurrentUserQuery(tenantId, userId, displayName, email)).ConfigureAwait(false);
-        return Results.Ok(profile);
+
+        var resolvedEmail = email ?? profile.Email;
+        var roles = string.IsNullOrWhiteSpace(resolvedEmail)
+            ? httpContext.User.GetRoles()
+            : roleResolver.Resolve(tenantId, resolvedEmail);
+
+        var permissions = string.IsNullOrWhiteSpace(resolvedEmail)
+            ? []
+            : permissionChecker.GetPermissions(tenantId, resolvedEmail);
+
+        return Results.Ok(profile with { Roles = roles, Permissions = permissions });
     }
 
     private static async Task<IResult> GetCurrentUserWalletAsync(
@@ -56,6 +73,36 @@ internal static class UserEndpoints
         tenantId = httpContext.GetTenantId(tenantId);
 
         var wallet = await sender.Send(new GetCurrentUserWalletQuery(tenantId, userId)).ConfigureAwait(false);
+        return Results.Ok(wallet);
+    }
+
+    private static async Task<IResult> GetMyBetsAsync(
+        HttpContext httpContext,
+        ISender sender,
+        string tenantId,
+        int? limit)
+    {
+        var userId = httpContext.GetUserId();
+        tenantId = httpContext.GetTenantId(tenantId);
+
+        var bets = await sender.Send(new GetMyBetsQuery(tenantId, userId, limit ?? 50)).ConfigureAwait(false);
+        return Results.Ok(bets);
+    }
+
+    private static async Task<IResult> DepositFundsAsync(
+        HttpContext httpContext,
+        ISender sender,
+        string tenantId,
+        [FromBody] DepositFundsRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var userId = httpContext.GetUserId();
+        tenantId = httpContext.GetTenantId(tenantId);
+
+        var wallet = await sender.Send(
+            DepositFundsCommand.FromRequest(tenantId, userId, request)).ConfigureAwait(false);
+
         return Results.Ok(wallet);
     }
 

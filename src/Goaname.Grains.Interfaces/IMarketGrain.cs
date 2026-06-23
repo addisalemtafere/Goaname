@@ -1,4 +1,5 @@
 using Goaname.Contracts.Markets;
+using Goaname.Domain.Enums;
 using Goaname.Domain.State;
 
 namespace Goaname.Grains.Interfaces;
@@ -20,9 +21,24 @@ public interface IMarketGrain : IGrainWithStringKey
     [Alias("PublishAsync")]
     public Task PublishAsync();
 
+    [Alias("CloseTradingAsync")]
+    public Task CloseTradingAsync();
+
+    [Alias("ResolveAsync")]
+    public Task ResolveAsync(Outcome winningOutcome);
+
+    [Alias("MarkSettledAsync")]
+    public Task MarkSettledAsync();
+
     [Alias("GetOddsAsync")]
     public Task<OddsSnapshot> GetOddsAsync();
 
     [Alias("GetSnapshotAsync")]
     public Task<MarketGrainSnapshot> GetSnapshotAsync();
+
+    /// <summary>
+    /// Validates access rules, updates AMM volumes, and returns placement pricing.
+    /// </summary>
+    [Alias("PlaceBetAsync")]
+    public Task<PlaceBetResult> PlaceBetAsync(Guid userId, Outcome outcome, decimal amount);
 }

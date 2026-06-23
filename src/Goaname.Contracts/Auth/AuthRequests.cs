@@ -23,4 +23,5 @@ public sealed record AuthResponse
     public required string DisplayName { get; init; }
     public required string Email { get; init; }
     public required DateTimeOffset ExpiresAt { get; init; }
+    public required IReadOnlyList<string> Roles { get; init; }
 }

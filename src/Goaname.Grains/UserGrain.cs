@@ -4,6 +4,7 @@ using Goaname.Domain.Rules;
 using Goaname.Domain.State;
 using Goaname.Grains.Interfaces;
 using Orleans.Runtime;
+using Orleans.Transactions;
 
 namespace Goaname.Grains;
 
@@ -130,18 +131,131 @@ public class UserGrain : Grain, IUserGrain
 
         EnsureWalletActive();
 
-        if (_state.State.Wallet.Balance < amount)
+        if (!WalletRules.HasSufficientBalance(_state.State.Wallet, amount))
         {
             throw new BusinessRuleException("Insufficient wallet balance.");
         }
 
+        ApplyDebit(amount);
+        await _state.WriteStateAsync().ConfigureAwait(true);
+        return _state.State.Wallet;
+    }
+
+    [Transaction(TransactionOption.CreateOrJoin)]
+    public async Task<WalletState> DebitForBetAsync(decimal amount, Guid betSlipId)
+    {
+        if (betSlipId == Guid.Empty)
+        {
+            throw new BusinessRuleException("Bet slip id is required.");
+        }
+
+        EnsureWalletActive();
+
+        if (WalletRules.IsMatchingBetDebit(_state.State.Wallet, betSlipId, amount))
+        {
+            return _state.State.Wallet;
+        }
+
+        if (WalletRules.HasConflictingBetDebit(_state.State.Wallet, betSlipId, amount))
+        {
+            throw new BusinessRuleException("Bet slip debit already recorded with a different amount.");
+        }
+
+        if (!WalletRules.HasSufficientBalance(_state.State.Wallet, amount))
+        {
+            throw new BusinessRuleException("Insufficient wallet balance.");
+        }
+
+        ApplyDebit(amount);
+        _state.State.Wallet.BetDebitsBySlipId[betSlipId] = amount;
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+        return _state.State.Wallet;
+    }
+
+    [Transaction(TransactionOption.CreateOrJoin)]
+    public async Task<WalletState> CreditWinningsAsync(decimal amount, Guid betSlipId)
+    {
+        if (betSlipId == Guid.Empty)
+        {
+            throw new BusinessRuleException("Bet slip id is required.");
+        }
+
+        if (amount < 0)
+        {
+            throw new BusinessRuleException("Credit amount cannot be negative.");
+        }
+
+        EnsureWalletActive();
+
+        if (amount == 0)
+        {
+            return _state.State.Wallet;
+        }
+
+        if (WalletRules.IsMatchingBetCredit(_state.State.Wallet, betSlipId, amount))
+        {
+            return _state.State.Wallet;
+        }
+
+        if (WalletRules.HasConflictingBetCredit(_state.State.Wallet, betSlipId, amount))
+        {
+            throw new BusinessRuleException("Bet slip credit already recorded with a different amount.");
+        }
+
         var now = DateTimeOffset.UtcNow;
-        _state.State.Wallet.Balance -= amount;
+        _state.State.Wallet.Balance += amount;
+        _state.State.Wallet.TotalWon += amount;
+        _state.State.Wallet.BetCreditsBySlipId[betSlipId] = amount;
         _state.State.Wallet.LastUpdated = now;
         _state.State.LastActiveAt = now;
 
         await _state.WriteStateAsync().ConfigureAwait(true);
         return _state.State.Wallet;
+    }
+
+    public async Task<WalletState> AdminAdjustWalletAsync(decimal signedAmount)
+    {
+        if (signedAmount == 0)
+        {
+            throw new BusinessRuleException("Adjustment amount cannot be zero.");
+        }
+
+        EnsureWalletActive();
+
+        if (signedAmount > 0)
+        {
+            return await DepositAsync(signedAmount).ConfigureAwait(true);
+        }
+
+        return await DebitAsync(Math.Abs(signedAmount)).ConfigureAwait(true);
+    }
+
+    public async Task AdminSetKycStatusAsync(KycStatus status)
+    {
+        EnsureInitialized();
+
+        _state.State.KycStatus = status;
+        _state.State.LastActiveAt = DateTimeOffset.UtcNow;
+
+        if (status == KycStatus.Verified)
+        {
+            _state.State.PayoutAccountVerifiedAt = _state.State.LastActiveAt;
+        }
+        else if (status is KycStatus.NotStarted or KycStatus.Pending)
+        {
+            _state.State.PayoutAccountVerifiedAt = null;
+        }
+
+        await _state.WriteStateAsync().ConfigureAwait(true);
+    }
+
+    private void ApplyDebit(decimal amount)
+    {
+        var now = DateTimeOffset.UtcNow;
+        _state.State.Wallet.Balance -= amount;
+        _state.State.Wallet.LastUpdated = now;
+        _state.State.LastActiveAt = now;
     }
 
     private void EnsureInitialized()
@@ -156,7 +270,7 @@ public class UserGrain : Grain, IUserGrain
     {
         EnsureInitialized();
 
-        if (_state.State.Wallet.Status != WalletStatus.Active)
+        if (!WalletRules.IsActive(_state.State.Wallet))
         {
             throw new BusinessRuleException("Wallet is not active.");
         }

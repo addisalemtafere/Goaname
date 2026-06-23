@@ -22,7 +22,7 @@ export function PageHeader({ title, subtitle, badge, action, size = 'default', c
   return (
     <div className={cn('flex flex-wrap items-start justify-between gap-4', className)}>
       <div>
-        <h1 className={cn('m-0 text-vantage-fg', titleClass)}>{title}</h1>
+        <h1 className={cn('m-0 text-vantage-fg', size === 'hero' && 'game-hero-title', titleClass)}>{title}</h1>
         {subtitle && <p className="mt-2 text-sm text-vantage-muted">{subtitle}</p>}
       </div>
       {(badge || action) && (

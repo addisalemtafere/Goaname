@@ -1,7 +1,9 @@
 using Goaname.Application;
 using Goaname.Domain.Exceptions;
+using Goaname.Infrastructure;
 using Goaname.Presentation.Endpoints;
 using Goaname.Presentation.Extensions;
+using System.Text.Json.Serialization;
 
 namespace Goaname.Presentation;
 
@@ -13,8 +15,8 @@ internal static class Program
 
         builder.AddGoanameConfiguration();
         builder.Services.AddApplicationServices();
-        builder.Services.AddGoanameAuth();
-        builder.Services.AddGoanameAuthentication(builder.Configuration, builder.Environment);
+        builder.Services.AddGoanameAuth(builder.Configuration);
+        builder.Services.AddGoanameOpenIddict(builder.Configuration, builder.Environment);
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("Frontend", policy =>
@@ -22,9 +24,16 @@ internal static class Program
                     .AllowAnyHeader()
                     .AllowAnyMethod());
         });
+        builder.Services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
+        builder.Services.AddInfrastructureServices(builder.Configuration);
         builder.AddGoanameOrleans();
 
         var app = builder.Build();
+
+        await app.Services.MigrateDatabaseAsync().ConfigureAwait(false);
 
         app.UseExceptionHandler(exceptionHandlerApp =>
         {
@@ -79,10 +88,15 @@ internal static class Program
         app.UseAuthorization();
 
         app.MapGet("/", () => "Goaname API is running");
+        app.MapConnectTokenEndpoints();
         app.MapTenantEndpoints();
         app.MapMarketEndpoints();
+        app.MapBetEndpoints();
+        app.MapActivityEndpoints();
+        app.MapLeaderboardEndpoints();
         app.MapUserEndpoints();
         app.MapAuthEndpoints();
+        app.MapAdminEndpoints();
         app.MapGoanameOrleansDashboard();
 
         await app.RunAsync().ConfigureAwait(false);

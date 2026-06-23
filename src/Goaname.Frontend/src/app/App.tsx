@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import type { PlaceBetResponse } from '../api/bets';
 import { listCategories } from '../api/categories';
-import { TENANT_ID, listMarkets, type MarketDto } from '../api/markets';
+import { listMarkets, type MarketDto } from '../api/markets';
 import { ActivityPage } from '../components/activity';
-import { MarketAdminPanel } from '../components/admin';
+import { AdminShell } from '../components/admin';
 import { AuthPanel } from '../components/auth';
 import {
-  AppSidenav,
-  AppTopbar,
-  getManageTitle,
   getPublicPageMeta,
   PublicBottomNav,
   PublicNav,
@@ -16,7 +14,6 @@ import {
 } from '../components/layout';
 import { LeaderboardPage } from '../components/leaderboard';
 import {
-  ActivityTicker,
   filterMarkets,
   MarketBrowseFilters,
   MarketGrid,
@@ -25,47 +22,48 @@ import {
 } from '../components/markets';
 import {
   Alert,
-  appContainerClass,
+  Button,
   EmptyState,
   LoadingOverlay,
   Modal,
-  pageBgClass,
-  PageHeader,
   publicContainerClass,
   publicMobileBottomPadClass,
+  PageHeader,
 } from '../components/ui';
+import { DepositPanel } from '../components/wallet';
 import { useAuth } from '../hooks/useAuth';
-
-async function ensureDemoTenant() {
-  await fetch(`/api/tenants/${TENANT_ID}/initialize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: 'Demo Markets', currency: 'USD' }),
-  }).catch(() => undefined);
-}
+import { isPlayerRole } from '../api/auth';
 
 function App() {
-  const { user, wallet, loading: authLoading, error, isAuthenticated, signIn, signUp, signOut } = useAuth();
+  const { user, wallet, roles, permissions, loading: authLoading, error, isAuthenticated, canAccessAdmin, isSuperAdmin, refresh, signIn, signUp, signOut } = useAuth();
   const [shell, setShell] = useState<AppShell>('public');
   const [publicPage, setPublicPage] = useState<PublicPage>('markets');
   const [showAuthPanel, setShowAuthPanel] = useState(false);
+  const [showDepositPanel, setShowDepositPanel] = useState(false);
   const [markets, setMarkets] = useState<MarketDto[]>([]);
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [marketsError, setMarketsError] = useState<string | null>(null);
   const [marketsRefreshKey, setMarketsRefreshKey] = useState(0);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const wasAuthenticated = useRef(false);
 
   const refreshMarkets = () => setMarketsRefreshKey((current) => current + 1);
+  const refreshActivity = () => setActivityRefreshKey((current) => current + 1);
   const filteredMarkets = filterMarkets(markets, searchQuery, selectedCategory);
-  const wasAuthenticated = useRef(isAuthenticated);
-  const showTicker = (page: PublicPage) => page !== 'activity';
+  const isPlayer = isAuthenticated && isPlayerRole(roles);
 
-  useEffect(() => {
-    void ensureDemoTenant();
-  }, []);
+  function openAddFunds() {
+    if (!isAuthenticated) {
+      openSignIn();
+      return;
+    }
+
+    setShowDepositPanel(true);
+  }
 
   useEffect(() => {
     void listCategories()
@@ -101,6 +99,10 @@ function App() {
   }, [marketsRefreshKey]);
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
     if (!isAuthenticated) {
       setShell('public');
       wasAuthenticated.current = false;
@@ -108,22 +110,24 @@ function App() {
     }
 
     setShowAuthPanel(false);
-    if (!wasAuthenticated.current) {
+
+    if (!canAccessAdmin) {
+      setShell('public');
+    } else if (!wasAuthenticated.current) {
       setShell('admin');
     }
+
     wasAuthenticated.current = true;
-  }, [isAuthenticated]);
+  }, [isAuthenticated, canAccessAdmin, authLoading]);
 
   function openSignIn() {
     setShowAuthPanel(true);
   }
 
-  function openManage() {
-    if (!isAuthenticated) {
-      openSignIn();
-      return;
+  function openAdminPanel() {
+    if (canAccessAdmin) {
+      setShell('admin');
     }
-    setShell('admin');
   }
 
   function handleLogout() {
@@ -139,15 +143,45 @@ function App() {
     setMobileNavOpen(false);
   }
 
+  function handleBetPlaced(marketId: string, response: PlaceBetResponse) {
+    setMarkets((current) =>
+      current.map((market) =>
+        market.id === marketId
+          ? {
+              ...market,
+              yesProbability: response.updatedOdds.yesProbability,
+              noProbability: response.updatedOdds.noProbability,
+              yesMultiplier: response.updatedOdds.yesMultiplier,
+              noMultiplier: response.updatedOdds.noMultiplier,
+            }
+          : market,
+      ),
+    );
+    void refresh();
+    refreshMarkets();
+    refreshActivity();
+  }
+
   const browseContent = (
     <>
       {isAuthenticated && user && user.kycStatus !== 'Verified' && (
-        <Alert variant="accent" className="mb-6">
-          Link your payout account to enable instant withdrawals.
+        <Alert variant="info" className="mb-6">
+          Identity verification for withdrawals is coming soon.
         </Alert>
       )}
 
-      {error && isAuthenticated && (
+      {isPlayer && wallet && wallet.balance <= 0 && (
+        <Alert variant="accent" className="mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>Your wallet is empty. Add funds to start placing bets.</span>
+            <Button variant="primary" onClick={openAddFunds}>
+              Add funds
+            </Button>
+          </div>
+        </Alert>
+      )}
+
+      {error && (
         <Alert className="mb-4">{error}</Alert>
       )}
 
@@ -163,6 +197,7 @@ function App() {
           onSearchChange={setSearchQuery}
           onCategoryChange={setSelectedCategory}
           resultCount={filteredMarkets.length}
+          activityRefreshKey={activityRefreshKey}
         />
       )}
 
@@ -172,9 +207,11 @@ function App() {
         <EmptyState
           title="No markets yet"
           description={
-            isAuthenticated
-              ? 'Open Manage to create and publish markets.'
-              : 'Sign in to create and publish markets.'
+            !isAuthenticated
+              ? 'Sign in to browse and place bets.'
+              : isPlayer
+                ? 'Add funds to your wallet, then check back when markets are published.'
+                : 'Create and publish markets from the admin panel.'
           }
         />
       )}
@@ -191,6 +228,9 @@ function App() {
           markets={filteredMarkets}
           isAuthenticated={isAuthenticated}
           onSignIn={openSignIn}
+          onAddFunds={isAuthenticated ? openAddFunds : undefined}
+          wallet={wallet}
+          onBetPlaced={handleBetPlaced}
         />
       )}
     </>
@@ -201,7 +241,15 @@ function App() {
       case 'leaderboard':
         return <LeaderboardPage />;
       case 'activity':
-        return <ActivityPage />;
+        return (
+          <ActivityPage
+            isAuthenticated={isAuthenticated}
+            refreshKey={activityRefreshKey}
+            currency={user?.preferredCurrency ?? wallet?.currency ?? 'USD'}
+            onSignIn={openSignIn}
+            onBrowseMarkets={() => setPublicPage('markets')}
+          />
+        );
       default:
         return browseContent;
     }
@@ -221,44 +269,45 @@ function App() {
     </Modal>
   );
 
-  if (isAuthenticated && user && shell === 'admin') {
-    const manageMeta = getManageTitle();
+  const depositModal = showDepositPanel && user && (
+    <Modal open={showDepositPanel} onClose={() => setShowDepositPanel(false)}>
+      <DepositPanel
+        user={user}
+        wallet={wallet}
+        onClose={() => setShowDepositPanel(false)}
+        onDeposited={() => void refresh()}
+      />
+    </Modal>
+  );
 
+  if (isAuthenticated && user && shell === 'admin' && canAccessAdmin) {
     return (
       <>
-        <div className={`flex min-h-screen ${pageBgClass}`}>
-          <AppSidenav
-            user={user}
-            wallet={wallet}
-            onBackToSite={() => backToSite('markets')}
-            onLogout={handleLogout}
-            tenantId={TENANT_ID}
-            mobileOpen={mobileNavOpen}
-            onMobileClose={() => setMobileNavOpen(false)}
-          />
-
-          <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-            <AppTopbar
-              title={manageMeta.title}
-              subtitle={manageMeta.subtitle}
-              badge="Admin"
-              onMenuClick={() => setMobileNavOpen(true)}
-            />
-            <div className={`${appContainerClass} flex-1`}>
-              <MarketAdminPanel onMarketsChanged={refreshMarkets} />
-            </div>
-          </div>
-        </div>
+        <AdminShell
+          user={user}
+          permissions={permissions}
+          isSuperAdmin={isSuperAdmin}
+          onBackToSite={() => backToSite('markets')}
+          onLogout={handleLogout}
+          onMarketsChanged={() => {
+            refreshMarkets();
+            refreshActivity();
+            void refresh();
+          }}
+          mobileNavOpen={mobileNavOpen}
+          onMobileNavOpen={() => setMobileNavOpen(true)}
+          onMobileNavClose={() => setMobileNavOpen(false)}
+        />
         {authLoading && <LoadingOverlay message="Loading account..." />}
       </>
     );
   }
 
-  const publicMeta = getPublicPageMeta(publicPage);
+  const publicMeta = getPublicPageMeta(publicPage, isAuthenticated);
 
   return (
     <>
-      <div className={`min-h-screen ${publicMobileBottomPadClass} ${pageBgClass}`}>
+      <div className={`game-shell min-h-screen ${publicMobileBottomPadClass}`}>
         <PublicNav
           activePage={publicPage}
           onNavigate={setPublicPage}
@@ -266,7 +315,9 @@ function App() {
           onSignIn={openSignIn}
           user={user}
           wallet={wallet}
-          onManage={isAuthenticated ? openManage : undefined}
+          isPlayer={isPlayer}
+          onAddFunds={isPlayer ? openAddFunds : undefined}
+          onAdminPanel={canAccessAdmin ? openAdminPanel : undefined}
           onLogout={isAuthenticated ? handleLogout : undefined}
         />
 
@@ -282,10 +333,10 @@ function App() {
         </main>
 
         <PublicBottomNav activePage={publicPage} onNavigate={setPublicPage} />
-        {showTicker(publicPage) && <ActivityTicker markets={markets} />}
       </div>
 
       {authModal}
+      {depositModal}
 
       {authLoading && isAuthenticated && (
         <LoadingOverlay message="Loading account..." />

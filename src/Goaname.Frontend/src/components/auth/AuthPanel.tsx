@@ -59,7 +59,11 @@ export function AuthPanel({ onClose, onLogin, onRegister }: AuthPanelProps) {
       <div className="border-b border-vantage-border px-8 py-6">
         <div className="flex items-start justify-between gap-4">
           <BrandLogo
-            subtitle={isLogin ? 'Sign in to your account' : 'Create a new account'}
+            subtitle={
+              isLogin
+                ? 'Sign in to bet and manage your wallet'
+                : 'Create an account with a betting wallet'
+            }
           />
           {onClose && <IconButton label="Close" onClick={onClose} />}
         </div>

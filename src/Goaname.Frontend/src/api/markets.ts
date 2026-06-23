@@ -1,5 +1,7 @@
 import { parseJsonResponse, readErrorMessage } from './client';
+import { apiFetch } from './http';
 import { TENANT_ID } from './auth';
+import type { BetStatus } from './bets';
 
 export { TENANT_ID };
 
@@ -12,16 +14,35 @@ export const MARKET_STATUS = {
   Cancelled: 5,
 } as const;
 
-export type MarketStatus = (typeof MARKET_STATUS)[keyof typeof MARKET_STATUS];
+export type MarketStatusName = 'Draft' | 'Open' | 'Closing' | 'Resolved' | 'Settled' | 'Cancelled';
 
-const MARKET_STATUS_LABELS: Record<MarketStatus, string> = {
-  [MARKET_STATUS.Draft]: 'Draft',
-  [MARKET_STATUS.Open]: 'Open',
-  [MARKET_STATUS.Closing]: 'Closing',
-  [MARKET_STATUS.Resolved]: 'Resolved',
-  [MARKET_STATUS.Settled]: 'Settled',
-  [MARKET_STATUS.Cancelled]: 'Cancelled',
+export type MarketStatus = MarketStatusName | (typeof MARKET_STATUS)[keyof typeof MARKET_STATUS];
+
+const MARKET_STATUS_LABELS: Record<MarketStatusName, string> = {
+  Draft: 'Draft',
+  Open: 'Open',
+  Closing: 'Closing',
+  Resolved: 'Resolved',
+  Settled: 'Settled',
+  Cancelled: 'Cancelled',
 };
+
+const MARKET_STATUS_BY_NUMBER: MarketStatusName[] = [
+  'Draft',
+  'Open',
+  'Closing',
+  'Resolved',
+  'Settled',
+  'Cancelled',
+];
+
+export function normalizeMarketStatus(status: MarketStatus): MarketStatusName {
+  if (typeof status === 'string') {
+    return status in MARKET_STATUS_LABELS ? (status as MarketStatusName) : 'Draft';
+  }
+
+  return MARKET_STATUS_BY_NUMBER[status] ?? 'Draft';
+}
 
 export interface MarketDto {
   id: string;
@@ -37,6 +58,7 @@ export interface MarketDto {
   totalVolume: number;
   uniqueTraders: number;
   isVisible: boolean;
+  winningOutcome?: Outcome | null;
 }
 
 export interface OddsSnapshot {
@@ -54,11 +76,36 @@ export interface CreateMarketRequest {
 }
 
 export function formatMarketStatus(status: MarketStatus): string {
-  return MARKET_STATUS_LABELS[status] ?? 'Unknown';
+  return MARKET_STATUS_LABELS[normalizeMarketStatus(status)];
 }
 
 export function isDraftMarket(market: MarketDto): boolean {
-  return market.status === MARKET_STATUS.Draft;
+  return normalizeMarketStatus(market.status) === 'Draft';
+}
+
+export function isOpenMarket(market: MarketDto): boolean {
+  return normalizeMarketStatus(market.status) === 'Open';
+}
+
+export function isClosingMarket(market: MarketDto): boolean {
+  return normalizeMarketStatus(market.status) === 'Closing';
+}
+
+export function isResolvedMarket(market: MarketDto): boolean {
+  return normalizeMarketStatus(market.status) === 'Resolved';
+}
+
+export function isSettledMarket(market: MarketDto): boolean {
+  return normalizeMarketStatus(market.status) === 'Settled';
+}
+
+export function isBettingOpen(market: MarketDto): boolean {
+  return normalizeMarketStatus(market.status) === 'Open';
+}
+
+export function isPublicMarket(market: MarketDto): boolean {
+  const status = normalizeMarketStatus(market.status);
+  return market.isVisible && (status === 'Open' || status === 'Closing');
 }
 
 export async function listMarkets(tenantId: string = TENANT_ID): Promise<MarketDto[]> {
@@ -67,16 +114,12 @@ export async function listMarkets(tenantId: string = TENANT_ID): Promise<MarketD
     throw new Error(await readErrorMessage(response));
   }
 
-  return parseJsonResponse<MarketDto[]>(response);
+  const markets = await parseJsonResponse<MarketDto[]>(response);
+  return markets.filter(isPublicMarket);
 }
 
 export async function listAdminMarkets(tenantId: string = TENANT_ID): Promise<MarketDto[]> {
-  const response = await fetch(`/api/tenants/${tenantId}/admin/markets`);
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-
-  return parseJsonResponse<MarketDto[]>(response);
+  return apiFetch<MarketDto[]>(`/api/tenants/${tenantId}/admin/markets`);
 }
 
 export async function getMarket(tenantId: string, marketId: string): Promise<MarketDto> {
@@ -97,33 +140,84 @@ export async function getMarketOdds(tenantId: string, marketId: string): Promise
   return parseJsonResponse<OddsSnapshot>(response);
 }
 
+export interface MarketBetSummary {
+  totalBets: number;
+  uniqueTraders: number;
+  totalStaked: number;
+  yesBets: number;
+  noBets: number;
+  yesStaked: number;
+  noStaked: number;
+  pendingBets: number;
+  wonBets: number;
+  lostBets: number;
+  totalPaidOut: number;
+}
+
+export interface MarketBetItem {
+  betSlipId: string;
+  userId: string;
+  outcome: Outcome;
+  amount: number;
+  sharesReceived: number;
+  oddsAtPlacement: number;
+  status: BetStatus;
+  settlementAmount?: number | null;
+  placedAt: string;
+  settledAt?: string | null;
+}
+
+export interface MarketBets {
+  summary: MarketBetSummary;
+  bets: MarketBetItem[];
+}
+
+export async function getMarketBets(
+  marketId: string,
+  tenantId: string = TENANT_ID,
+): Promise<MarketBets> {
+  return apiFetch<MarketBets>(`/api/tenants/${tenantId}/admin/markets/${marketId}/bets`);
+}
+
 export async function createMarket(
   request: CreateMarketRequest,
   tenantId: string = TENANT_ID,
 ): Promise<MarketDto> {
-  const response = await fetch(`/api/tenants/${tenantId}/admin/markets`, {
+  return apiFetch<MarketDto>(`/api/tenants/${tenantId}/admin/markets`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
   });
-
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-
-  return parseJsonResponse<MarketDto>(response);
 }
 
 export async function publishMarket(marketId: string, tenantId: string = TENANT_ID): Promise<MarketDto> {
-  const response = await fetch(`/api/tenants/${tenantId}/admin/markets/${marketId}/publish`, {
+  return apiFetch<MarketDto>(`/api/tenants/${tenantId}/admin/markets/${marketId}/publish`, {
     method: 'POST',
   });
+}
 
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
+export async function closeMarket(marketId: string, tenantId: string = TENANT_ID): Promise<MarketDto> {
+  return apiFetch<MarketDto>(`/api/tenants/${tenantId}/admin/markets/${marketId}/close`, {
+    method: 'POST',
+  });
+}
 
-  return parseJsonResponse<MarketDto>(response);
+export type Outcome = 'Yes' | 'No';
+
+export async function resolveMarket(
+  marketId: string,
+  winningOutcome: Outcome,
+  tenantId: string = TENANT_ID,
+): Promise<MarketDto> {
+  return apiFetch<MarketDto>(`/api/tenants/${tenantId}/admin/markets/${marketId}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ winningOutcome }),
+  });
+}
+
+export async function settleMarket(marketId: string, tenantId: string = TENANT_ID): Promise<MarketDto> {
+  return apiFetch<MarketDto>(`/api/tenants/${tenantId}/admin/markets/${marketId}/settle`, {
+    method: 'POST',
+  });
 }
 
 export function daysUntil(endDate: string): number {

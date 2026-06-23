@@ -17,4 +17,5 @@ public sealed record MarketDto
     public decimal TotalVolume { get; init; }
     public int UniqueTraders { get; init; }
     public bool IsVisible { get; init; }
+    public Outcome? WinningOutcome { get; init; }
 }

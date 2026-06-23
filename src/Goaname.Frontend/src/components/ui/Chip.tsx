@@ -18,8 +18,8 @@ export function Chip({ label, active = false, onClick, className }: ChipProps) {
         'shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition',
         onClick && 'cursor-pointer',
         active
-          ? 'bg-vantage-accent text-white'
-          : 'bg-vantage-elevated text-vantage-muted hover:text-vantage-fg',
+          ? 'game-chip-active text-white'
+          : 'border border-transparent bg-vantage-elevated text-vantage-muted hover:border-vantage-border hover:text-vantage-fg',
         className,
       )}
     >
