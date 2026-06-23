@@ -18,4 +18,4 @@ export const stickyHeaderClass =
 /** Extra bottom padding when a fixed mobile nav or ticker is visible */
 export const mobileBottomPadClass = 'pb-20 md:pb-14';
 
-export const publicMobileBottomPadClass = 'pb-24 md:pb-14';
+export const publicMobileBottomPadClass = 'pb-24 md:pb-8';

@@ -356,21 +356,13 @@ export function MarketAdminPanel({ tenantId, onMarketsChanged }: MarketAdminPane
 
   return (
     <div className="admin-markets-workspace grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          <Chip label="All" active={marketFilter === 'all'} onClick={() => setMarketFilter('all')} />
-          <Chip label="Active" active={marketFilter === 'active'} onClick={() => setMarketFilter('active')} />
-          <Chip label="Settled" active={marketFilter === 'settled'} onClick={() => setMarketFilter('settled')} />
-          <Chip label="Draft" active={marketFilter === 'draft'} onClick={() => setMarketFilter('draft')} />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={() => setShowTools((value) => !value)}>
-            {showTools ? 'Hide tools' : 'Create & categories'}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => void loadMarkets()}>
-            Refresh
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button variant="secondary" size="sm" onClick={() => setShowTools((value) => !value)}>
+          {showTools ? 'Hide tools' : 'Create & categories'}
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => void loadMarkets()}>
+          Refresh
+        </Button>
       </div>
 
       {error && <Alert>{error}</Alert>}
@@ -504,15 +496,24 @@ export function MarketAdminPanel({ tenantId, onMarketsChanged }: MarketAdminPane
           </aside>
 
           <section className="admin-markets-pane min-w-0 border-b border-vantage-border lg:border-r lg:border-b-0">
-            <div className="flex items-center justify-between gap-3 border-b border-vantage-border px-4 py-2.5">
+            <div className="border-b border-vantage-border px-4 py-2.5">
               <p className="m-0 truncate text-sm font-semibold text-vantage-fg">
                 {selectedCategory ? formatCategoryLabel(selectedCategory) : 'Markets'}
               </p>
+            </div>
+
+            <div className="space-y-2.5 border-b border-vantage-border px-4 py-2.5">
+              <div className="flex flex-wrap gap-2">
+                <Chip label="All" active={marketFilter === 'all'} onClick={() => setMarketFilter('all')} />
+                <Chip label="Active" active={marketFilter === 'active'} onClick={() => setMarketFilter('active')} />
+                <Chip label="Settled" active={marketFilter === 'settled'} onClick={() => setMarketFilter('settled')} />
+                <Chip label="Draft" active={marketFilter === 'draft'} onClick={() => setMarketFilter('draft')} />
+              </div>
               <Input
                 value={marketSearch}
                 onChange={(event) => setMarketSearch(event.target.value)}
                 placeholder="Find market..."
-                className="h-8 max-w-[220px] text-sm"
+                className="h-8 w-full text-xs"
               />
             </div>
 

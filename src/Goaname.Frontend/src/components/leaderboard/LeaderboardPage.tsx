@@ -80,7 +80,7 @@ export function LeaderboardPage() {
         <StatCard label="Top win rate" value={`${stats.topWinRate}%`} />
       </div>
 
-      <Card className="overflow-hidden rounded-2xl">
+      <Card className="game-data-panel overflow-hidden rounded-2xl">
         <div className="hidden grid-cols-[56px_1fr_120px_100px_120px_80px] gap-4 border-b border-vantage-border px-5 py-3 text-[11px] font-bold tracking-wider text-vantage-muted uppercase lg:grid">
           <span>Rank</span>
           <span>Trader</span>
@@ -145,7 +145,7 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
 
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <Card variant="elevated" className="rounded-2xl p-4 sm:p-5">
+    <Card variant="elevated" className={cn('game-stat-card rounded-2xl p-4 sm:p-5', accent && 'game-stat-card--accent')}>
       <p className="m-0 text-[10px] font-bold tracking-wider text-vantage-muted uppercase sm:text-xs">{label}</p>
       <p className={cn('m-0 mt-1 text-xl font-extrabold sm:mt-2 sm:text-2xl', accent ? 'text-vantage-accent' : 'text-vantage-fg')}>
         {value}

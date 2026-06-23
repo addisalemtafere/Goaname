@@ -109,13 +109,7 @@ function AdminShellInner({
           isSuperAdmin={isSuperAdmin}
           onMenuClick={onMobileNavOpen}
         />
-        <main
-          className={cn(
-            adminContentClass,
-            'flex-1',
-            section === 'markets' && 'px-3 py-2 lg:px-4',
-          )}
-        >
+        <main className={cn(adminContentClass, 'flex-1 px-3 py-2 lg:px-4')}>
           <AdminSectionContent
             section={section}
             permissions={permissions}

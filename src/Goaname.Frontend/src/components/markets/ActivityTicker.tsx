@@ -18,8 +18,14 @@ export function ActivityTicker({ refreshKey = 0 }: ActivityTickerProps) {
   const doubled = [...tickerItems, ...tickerItems];
 
   return (
-    <div className="game-ticker relative fixed right-0 bottom-0 left-0 z-20 hidden overflow-hidden border-t py-2.5 backdrop-blur-md md:block">
-      <div className="vantage-marquee-track flex w-max gap-10 whitespace-nowrap px-6">
+    <div className="game-ticker game-ticker--inline relative overflow-hidden rounded-xl border py-2.5">
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-16 items-center bg-gradient-to-r from-[rgba(8,8,12,0.98)] to-transparent pl-3">
+        <span className="relative flex h-2 w-2">
+          <span className="vantage-pulse-ring absolute inline-flex h-full w-full rounded-full bg-vantage-live" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-vantage-live" />
+        </span>
+      </div>
+      <div className="vantage-marquee-track flex w-max gap-10 whitespace-nowrap px-10">
         {doubled.map((item, index) => (
           <TickerItem key={`${item.key}-${index}`} item={item} />
         ))}

@@ -15,7 +15,14 @@ import { useAdminPageState } from '../../../hooks/useAdminPageState';
 import { ActionsMenu } from '../ActionsMenu';
 import { RoleAssignmentsModal } from '../RoleAssignmentsModal';
 import { RolePermissionsModal } from '../RolePermissionsModal';
-import { AdminPage } from '../AdminPage';
+import {
+  AdminPageShell,
+  AdminPane,
+  AdminPaneBody,
+  AdminPaneHeader,
+  AdminWorkspace,
+  adminControlClass,
+} from '../adminLayout';
 import { countRoleAssignments, SYSTEM_ROLES, type SystemRole } from '../roles/shared';
 import { Alert, DataTable, Field, Input, type DataTableColumn } from '../../ui';
 
@@ -145,33 +152,43 @@ export function RolesPage() {
   }
 
   return (
-    <AdminPage title="Roles" description="System roles, assignments, and permission definitions.">
-      {error && <Alert>{error}</Alert>}
-      {message && <Alert variant="accent">{message}</Alert>}
-
+    <AdminPageShell
+      description="System roles, assignments, and permission definitions."
+      error={error}
+      message={message}
+    >
       <Alert variant="info">
         Permissions are defined in code and mapped to roles. Use Actions → Permissions to review grants.
       </Alert>
 
-      <Field label="Search" className="min-w-0 sm:max-w-xs">
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search roles..."
-          className="h-8 text-xs"
-        />
-      </Field>
-
-      <div className="overflow-hidden rounded-md border border-vantage-border bg-vantage-surface">
-        <DataTable
-          columns={columns}
-          rows={filteredRoles}
-          rowKey={(row) => row.key}
-          emptyMessage="No roles match your search."
-          dense
-          bordered={false}
-        />
-      </div>
+      <AdminWorkspace>
+        <AdminPane bordered="none">
+          <AdminPaneHeader
+            title="Role directory"
+            description="Search and manage system roles."
+            action={
+              <Field label="Search" className="m-0 min-w-0 sm:w-48">
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search roles..."
+                  className={adminControlClass}
+                />
+              </Field>
+            }
+          />
+          <AdminPaneBody className="p-0">
+            <DataTable
+              columns={columns}
+              rows={filteredRoles}
+              rowKey={(row) => row.key}
+              emptyMessage="No roles match your search."
+              dense
+              bordered={false}
+            />
+          </AdminPaneBody>
+        </AdminPane>
+      </AdminWorkspace>
 
       {permissionsRole && matrix && (
         <RolePermissionsModal
@@ -201,6 +218,6 @@ export function RolesPage() {
           onClose={() => setAssignmentsRole(null)}
         />
       )}
-    </AdminPage>
+    </AdminPageShell>
   );
 }

@@ -92,7 +92,7 @@ export function ActivityPage({
       )}
 
       {!loading && items.length > 0 && (
-        <Card className="w-full overflow-hidden rounded-2xl">
+        <Card className="game-data-panel w-full overflow-hidden rounded-2xl">
           <div className="hidden grid-cols-[88px_140px_120px_1fr_120px] gap-4 border-b border-vantage-border bg-vantage-bg/60 px-5 py-3 text-[11px] font-bold tracking-wider text-vantage-muted uppercase lg:grid">
             <span>Time</span>
             <span>Trader</span>
@@ -209,7 +209,7 @@ function MyBetRow({ bet, currency }: { bet: BetHistoryItem; currency: 'USD' | 'E
 
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <Card variant="elevated" className="rounded-2xl p-4 sm:p-5">
+    <Card variant="elevated" className={cn('game-stat-card rounded-2xl p-4 sm:p-5', accent && 'game-stat-card--accent')}>
       <p className="m-0 text-[10px] font-bold tracking-wider text-vantage-muted uppercase sm:text-xs">{label}</p>
       <p className={cn('m-0 mt-1 text-xl font-extrabold sm:mt-2 sm:text-2xl', accent ? 'text-vantage-yes' : 'text-vantage-fg')}>
         {value}

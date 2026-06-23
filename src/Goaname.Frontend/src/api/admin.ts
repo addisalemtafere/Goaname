@@ -88,7 +88,14 @@ export interface BackOfficeOverview {
 }
 
 export async function getBackOfficeOverview(tenantId: string): Promise<BackOfficeOverview> {
-  return apiFetch<BackOfficeOverview>(`/api/tenants/${tenantId}/admin/overview`);
+  const data = await apiFetch<BackOfficeOverview & { oAuthClientCount?: number }>(
+    `/api/tenants/${tenantId}/admin/overview`,
+  );
+
+  return {
+    ...data,
+    oauthClientCount: data.oauthClientCount ?? data.oAuthClientCount ?? 0,
+  };
 }
 
 export async function listAdminTenants(): Promise<TenantSummary[]> {

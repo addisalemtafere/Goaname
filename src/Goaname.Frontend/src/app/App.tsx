@@ -14,7 +14,6 @@ import {
 } from '../components/layout';
 import { LeaderboardPage } from '../components/leaderboard';
 import {
-  ActivityTicker,
   filterMarkets,
   MarketBrowseFilters,
   MarketGrid,
@@ -55,7 +54,6 @@ function App() {
   const refreshMarkets = () => setMarketsRefreshKey((current) => current + 1);
   const refreshActivity = () => setActivityRefreshKey((current) => current + 1);
   const filteredMarkets = filterMarkets(markets, searchQuery, selectedCategory);
-  const showTicker = (page: PublicPage) => page !== 'activity';
   const isPlayer = isAuthenticated && isPlayerRole(roles);
 
   function openAddFunds() {
@@ -199,6 +197,7 @@ function App() {
           onSearchChange={setSearchQuery}
           onCategoryChange={setSelectedCategory}
           resultCount={filteredMarkets.length}
+          activityRefreshKey={activityRefreshKey}
         />
       )}
 
@@ -334,7 +333,6 @@ function App() {
         </main>
 
         <PublicBottomNav activePage={publicPage} onNavigate={setPublicPage} />
-        {showTicker(publicPage) && <ActivityTicker refreshKey={activityRefreshKey} />}
       </div>
 
       {authModal}

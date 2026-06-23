@@ -8,13 +8,23 @@ import {
   type OAuthClient,
 } from '../../../api/admin';
 import { useAdminPageState } from '../../../hooks/useAdminPageState';
+import { AdminEmptyAside } from '../AdminPage';
 import {
-  Alert,
+  AdminPageShell,
+  AdminPane,
+  AdminPaneBody,
+  AdminPaneFooter,
+  AdminPaneHeader,
+  AdminSplitGrid,
+  AdminWorkspace,
+  adminControlClass,
+  adminTextareaClass,
+} from '../adminLayout';
+import {
   Button,
   DataTable,
   Field,
   Input,
-  PanelSection,
   type DataTableColumn,
 } from '../../ui';
 
@@ -31,6 +41,7 @@ export function ClientsPage() {
   });
   const [redirectUrisText, setRedirectUrisText] = useState('');
   const [permissionsText, setPermissionsText] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   async function refreshClients() {
     const data = await listOAuthClients();
@@ -60,10 +71,10 @@ export function ClientsPage() {
   }, [selectedClient]);
 
   const columns: DataTableColumn<OAuthClient>[] = [
-    { key: 'clientId', header: 'Client ID', render: (row) => row.clientId },
+    { key: 'clientId', header: 'Client ID', render: (row) => <span className="font-medium">{row.clientId}</span> },
     { key: 'name', header: 'Display name', render: (row) => row.displayName },
     { key: 'type', header: 'Type', render: (row) => row.clientType },
-    { key: 'permissions', header: 'Permissions', render: (row) => String(row.permissions.length) },
+    { key: 'permissions', header: 'Permissions', className: 'tabular-nums', render: (row) => String(row.permissions.length) },
   ];
 
   async function handleCreate() {
@@ -79,6 +90,7 @@ export function ClientsPage() {
       await createOAuthClient(payload);
       await refreshClients();
       setSelectedClientId(payload.clientId);
+      setIsCreating(false);
       setForm({ clientId: '', displayName: '', clientType: 'public', redirectUris: [], permissions: [] });
       setRedirectUrisText('');
       setPermissionsText('');
@@ -112,66 +124,122 @@ export function ClientsPage() {
     }, 'OAuth client deleted.');
   }
 
+  function startCreate() {
+    setSelectedClientId(null);
+    setIsCreating(true);
+    setForm({ clientId: '', displayName: '', clientType: 'public', redirectUris: [], permissions: [] });
+    setRedirectUrisText('');
+    setPermissionsText('');
+  }
+
+  const showEditor = Boolean(selectedClient) || isCreating;
+
   return (
-    <div className="grid gap-6">
-      {error && <Alert>{error}</Alert>}
-      {message && <Alert variant="accent">{message}</Alert>}
-
-      <PanelSection title="OAuth clients" description="Manage OpenIddict applications used by frontends and integrations.">
-        <DataTable
-          columns={columns}
-          rows={clients}
-          rowKey={(row) => row.clientId}
-          selectedKey={selectedClientId}
-          onRowClick={(row) => setSelectedClientId(row.clientId)}
-        />
-      </PanelSection>
-
-      <PanelSection title={selectedClient ? `Edit ${selectedClient.clientId}` : 'Create client'} description="Configure client metadata, redirect URIs, and permissions.">
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field label="Client ID">
-            <Input
-              value={form.clientId}
-              disabled={Boolean(selectedClient)}
-              onChange={(e) => setForm((current) => ({ ...current, clientId: e.target.value }))}
+    <AdminPageShell
+      description="Manage OpenIddict applications used by frontends and integrations."
+      error={error}
+      message={message}
+    >
+      <AdminWorkspace>
+        <AdminSplitGrid>
+          <AdminPane>
+            <AdminPaneHeader
+              title="OAuth clients"
+              description="Select a client to edit or create a new one."
+              action={
+                <Button variant="secondary" size="sm" onClick={startCreate}>
+                  New client
+                </Button>
+              }
             />
-          </Field>
-          <Field label="Display name">
-            <Input value={form.displayName} onChange={(e) => setForm((current) => ({ ...current, displayName: e.target.value }))} />
-          </Field>
-        </div>
+            <AdminPaneBody>
+              <DataTable
+                columns={columns}
+                rows={clients}
+                rowKey={(row) => row.clientId}
+                selectedKey={selectedClientId}
+                onRowClick={(row) => {
+                  setIsCreating(false);
+                  setSelectedClientId(row.clientId);
+                }}
+                dense
+                emptyMessage="No OAuth clients configured."
+              />
+            </AdminPaneBody>
+          </AdminPane>
 
-        <Field label="Redirect URIs (one per line)" className="mt-3">
-          <textarea
-            className="min-h-24 w-full rounded-xl border border-vantage-border bg-vantage-bg px-3 py-2 text-sm text-vantage-fg"
-            value={redirectUrisText}
-            onChange={(e) => setRedirectUrisText(e.target.value)}
-          />
-        </Field>
+          <AdminPane bordered="none">
+            {showEditor ? (
+              <div className="flex h-full min-h-0 flex-col">
+                <AdminPaneHeader
+                  title={selectedClient ? `Edit ${selectedClient.clientId}` : 'Create client'}
+                  description="Configure client metadata, redirect URIs, and permissions."
+                />
+                <AdminPaneBody>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Client ID">
+                      <Input
+                        className={adminControlClass}
+                        value={form.clientId}
+                        disabled={Boolean(selectedClient)}
+                        onChange={(e) => setForm((current) => ({ ...current, clientId: e.target.value }))}
+                      />
+                    </Field>
+                    <Field label="Display name">
+                      <Input
+                        className={adminControlClass}
+                        value={form.displayName}
+                        onChange={(e) => setForm((current) => ({ ...current, displayName: e.target.value }))}
+                      />
+                    </Field>
+                  </div>
 
-        <Field label="Permissions (one per line)" className="mt-3">
-          <textarea
-            className="min-h-24 w-full rounded-xl border border-vantage-border bg-vantage-bg px-3 py-2 text-sm text-vantage-fg"
-            value={permissionsText}
-            onChange={(e) => setPermissionsText(e.target.value)}
-          />
-        </Field>
+                  <Field label="Redirect URIs (one per line)" className="mt-3">
+                    <textarea
+                      className={adminTextareaClass}
+                      value={redirectUrisText}
+                      onChange={(e) => setRedirectUrisText(e.target.value)}
+                    />
+                  </Field>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {!selectedClient && (
-            <Button disabled={loading || !form.clientId || !form.displayName} onClick={() => void handleCreate()}>
-              Create client
-            </Button>
-          )}
-          {selectedClient && (
-            <>
-              <Button disabled={loading} onClick={() => void handleUpdate()}>Save changes</Button>
-              <Button variant="secondary" disabled={loading} onClick={() => void handleDelete()}>Delete client</Button>
-              <Button variant="secondary" onClick={() => setSelectedClientId(null)}>Create new</Button>
-            </>
-          )}
-        </div>
-      </PanelSection>
-    </div>
+                  <Field label="Permissions (one per line)" className="mt-3">
+                    <textarea
+                      className={adminTextareaClass}
+                      value={permissionsText}
+                      onChange={(e) => setPermissionsText(e.target.value)}
+                    />
+                  </Field>
+                </AdminPaneBody>
+                <AdminPaneFooter>
+                  <div className="flex flex-wrap gap-2">
+                    {!selectedClient && (
+                      <Button
+                        size="sm"
+                        disabled={loading || !form.clientId || !form.displayName}
+                        onClick={() => void handleCreate()}
+                      >
+                        Create client
+                      </Button>
+                    )}
+                    {selectedClient && (
+                      <>
+                        <Button size="sm" disabled={loading} onClick={() => void handleUpdate()}>
+                          Save changes
+                        </Button>
+                        <Button variant="secondary" size="sm" disabled={loading} onClick={() => void handleDelete()}>
+                          Delete client
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </AdminPaneFooter>
+              </div>
+            ) : (
+              <AdminEmptyAside message="Select a client from the directory or create a new one." />
+            )}
+          </AdminPane>
+        </AdminSplitGrid>
+      </AdminWorkspace>
+    </AdminPageShell>
   );
 }

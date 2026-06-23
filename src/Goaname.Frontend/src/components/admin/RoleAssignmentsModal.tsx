@@ -2,6 +2,7 @@ import { GoanameRoles } from '../../api/auth';
 import type { RoleRegistry } from '../../api/admin';
 import { useAdminContext } from '../../context/AdminContext';
 import { Button, Field, Input, Modal } from '../ui';
+import { adminControlClass } from './adminLayout';
 import type { SystemRole } from './roles/shared';
 import { formatAdminEmail } from './roles/shared';
 
@@ -58,7 +59,7 @@ export function RoleAssignmentsModal({
                   value={superAdminEmail}
                   onChange={(event) => onSuperAdminEmailChange(event.target.value)}
                   placeholder="admin@example.com"
-                  className="h-8 text-xs"
+                  className={adminControlClass}
                 />
               </Field>
               <Button size="sm" disabled={loading} onClick={onGrantSuperAdmin}>
@@ -84,7 +85,7 @@ export function RoleAssignmentsModal({
                 <Input
                   value={tenantAdminTenantId || tenantId}
                   onChange={(event) => onTenantAdminTenantIdChange(event.target.value)}
-                  className="h-8 text-xs"
+                  className={adminControlClass}
                 />
               </Field>
               <Field label="Email">
@@ -92,7 +93,7 @@ export function RoleAssignmentsModal({
                   value={tenantAdminEmail}
                   onChange={(event) => onTenantAdminEmailChange(event.target.value)}
                   placeholder="admin@example.com"
-                  className="h-8 text-xs"
+                  className={adminControlClass}
                 />
               </Field>
               <div className="flex items-end">

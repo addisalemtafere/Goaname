@@ -160,12 +160,17 @@ html,
 }
 
 .game-shell .game-ticker {
-  border-top-color: rgba(0, 230, 118, 0.2);
+  border-color: rgba(0, 230, 118, 0.2);
   background: linear-gradient(180deg, rgba(8, 8, 12, 0.97) 0%, rgba(5, 5, 8, 0.99) 100%);
-  box-shadow: 0 -4px 24px rgba(0, 230, 118, 0.06);
 }
 
-.game-shell .game-ticker::before {
+.game-shell .game-ticker--inline {
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.game-shell .game-ticker--inline::before {
   content: "";
   position: absolute;
   top: 0;
@@ -220,6 +225,24 @@ html,
   background: rgba(0, 230, 118, 0.08);
   box-shadow: 0 0 16px rgba(0, 230, 118, 0.1);
   color: #00e676;
+}
+
+.game-shell .game-stat-card {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(160deg, rgba(22, 22, 31, 0.98) 0%, rgba(12, 12, 18, 0.99) 100%);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.game-shell .game-stat-card--accent p:last-child {
+  text-shadow: 0 0 20px rgba(124, 92, 255, 0.35);
+}
+
+.game-shell .game-data-panel {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(18, 18, 26, 0.98) 0%, rgba(10, 10, 14, 0.99) 100%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 /* Admin back office — dense layout, precise numerals, flat surfaces */
@@ -291,13 +314,27 @@ html,
   }
 }
 
-.admin-shell input,
-.admin-shell select,
+.admin-shell input[type="checkbox"] {
+  accent-color: var(--color-vantage-accent);
+}
+
+.admin-shell .admin-toggle {
+  color: var(--color-vantage-fg);
+}
+
 .admin-shell textarea {
   border-radius: 0.375rem;
-  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--color-vantage-border);
+  background: var(--color-vantage-control);
+  color: var(--color-vantage-fg);
+  padding: 0.5rem 0.625rem;
   font-size: 0.8125rem;
   line-height: 1.25rem;
+}
+
+.admin-shell textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-vantage-accent) 50%, var(--color-vantage-border));
 }
 
 .admin-shell label.grid {

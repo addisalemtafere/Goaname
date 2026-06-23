@@ -1,4 +1,5 @@
 using Goaname.Domain.Enums;
+using System.Text.Json.Serialization;
 
 namespace Goaname.Contracts.Admin;
 
@@ -106,6 +107,9 @@ public sealed record BackOfficeOverviewDto
 {
     public int TenantCount { get; init; }
     public int UserCount { get; init; }
+
+    [JsonPropertyName("oauthClientCount")]
     public int OAuthClientCount { get; init; }
+
     public required string ActiveTenantId { get; init; }
 }
